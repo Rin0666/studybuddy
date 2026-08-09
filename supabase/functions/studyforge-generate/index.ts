@@ -95,6 +95,10 @@ function buildRetryMessage(attempt: number, issue: string): string {
   return `Retry ${attempt}/2: the previous response had a validation issue (${issue}). Please fix it and return strictly valid JSON matching the schema.`;
 }
 
+const FEATHERLESS_TIMEOUT_MS = 45_000; // Keep well under Edge Function 150s limit
+const MAX_FEATHERLESS_TOKENS = 4096; // Lower = faster, less timeout risk
+const MAX_ATTEMPTS = 2;
+
 async function callFeatherless(
   apiKey: string,
   model: string,
@@ -103,30 +107,43 @@ async function callFeatherless(
   system: string,
   userContent: string
 ) {
-  const response = await fetch("https://api.featherless.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: userContent },
-      ],
-      temperature: 0.6,
-      max_tokens: 8192,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FEATHERLESS_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Featherless API error ${response.status}: ${text}`);
+  try {
+    const response = await fetch("https://api.featherless.ai/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userContent },
+        ],
+        temperature: 0.6,
+        max_tokens: MAX_FEATHERLESS_TOKENS,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Featherless API error ${response.status}: ${text}`);
+    }
+
+    return response.json();
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Featherless API timed out while generating the study plan. Try a faster model or a narrower topic.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return response.json();
 }
 
 function parseContent(rawContent: string): unknown {
@@ -176,9 +193,8 @@ Deno.serve(async (req) => {
     ].join("\n\n");
 
     let lastValidationError: z.ZodError | null = null;
-    const maxAttempts = 3;
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const issue = lastValidationError ? summarizeIssues(lastValidationError) : "";
       const userContent = [baseUserContent, buildRetryMessage(attempt, issue)]
         .filter(Boolean)
