@@ -37,7 +37,7 @@ export function useStudyForge(): UseStudyForge {
 
       if (err instanceof FunctionsHttpError) {
         try {
-          const data = await err.context.response.json();
+          const data = await err.context.json();
           message = data?.error ?? err.message;
         } catch {
           message = err.message;
