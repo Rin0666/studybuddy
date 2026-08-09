@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import type { StudySet, Subtopic, Question } from "@/types";
+import type { StudySet, Question } from "@/types";
 import { HelpCircle, RotateCcw, CheckCircle2, XCircle, Trophy } from "lucide-react";
 
 type Selections = Record<string, number | undefined>;

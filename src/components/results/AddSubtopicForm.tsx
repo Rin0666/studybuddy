@@ -1,10 +1,11 @@
 import { useId, useState } from "react";
-import { Plus, Loader2, AlertCircle, X, CheckCircle2, Compass } from "lucide-react";
+import { Plus, Loader2, AlertCircle, X, CheckCircle2, Compass, Sparkles } from "lucide-react";
 import type { AddSubtopicStatus, SubtopicAddError } from "@/types";
 
 interface AddSubtopicFormProps {
   parentTitle: string;
   onAdd: (title: string) => Promise<boolean>;
+  onSuggest?: () => Promise<boolean>;
   status: AddSubtopicStatus;
   error: SubtopicAddError | null;
   variant?: "child" | "root" | "root-dive";
@@ -13,6 +14,7 @@ interface AddSubtopicFormProps {
 export function AddSubtopicForm({
   parentTitle,
   onAdd,
+  onSuggest,
   status,
   error,
   variant = "child",
@@ -58,6 +60,15 @@ export function AddSubtopicForm({
     if (isLoading) return;
     setTitle(suggestion);
     const success = await onAdd(suggestion);
+    if (success) {
+      setTitle("");
+      setIsOpen(false);
+    }
+  };
+
+  const handleSuggestAndAdd = async () => {
+    if (!onSuggest || isLoading) return;
+    const success = await onSuggest();
     if (success) {
       setTitle("");
       setIsOpen(false);
@@ -142,6 +153,17 @@ export function AddSubtopicForm({
           autoFocus
         />
         <div className="flex items-center gap-2">
+          {onSuggest && (
+            <button
+              type="button"
+              onClick={handleSuggestAndAdd}
+              disabled={isLoading}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.04] px-3 py-2 text-xs font-semibold text-primary transition-all duration-200 hover:border-primary hover:bg-primary/[0.08] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            >
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              Suggest &amp; add
+            </button>
+          )}
           <button
             type="submit"
             disabled={isLoading || !title.trim()}

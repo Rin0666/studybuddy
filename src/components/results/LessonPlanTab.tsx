@@ -9,6 +9,7 @@ interface LessonPlanTabProps {
   subtopics: Subtopic[];
   model: Model;
   onAddSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
+  onSuggestSubtopic: (parentIndex: number) => Promise<boolean>;
   onAddRootSubtopic: (requestedTitle: string) => Promise<boolean>;
   onRootDeepDive: (requestedTitle?: string) => Promise<boolean>;
   addStatusByParent: Partial<Record<number | "root" | "root-dive", AddSubtopicStatus>>;
@@ -46,6 +47,7 @@ export function LessonPlanTab({
   subtopics,
   model,
   onAddSubtopic,
+  onSuggestSubtopic,
   onAddRootSubtopic,
   onRootDeepDive,
   addStatusByParent,
@@ -79,6 +81,7 @@ export function LessonPlanTab({
               isOpen={isOpen}
               toggle={toggle}
               onAddSubtopic={onAddSubtopic}
+              onSuggestSubtopic={onSuggestSubtopic}
               addStatusByParent={addStatusByParent}
               addErrorByParent={addErrorByParent}
               depth={0}
@@ -120,6 +123,7 @@ interface SubtopicNodeProps {
   isOpen: (key: string) => boolean;
   toggle: (key: string) => void;
   onAddSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
+  onSuggestSubtopic: (parentIndex: number) => Promise<boolean>;
   addStatusByParent: Partial<Record<number | "root" | "root-dive", AddSubtopicStatus>>;
   addErrorByParent: Partial<Record<number | "root" | "root-dive", SubtopicAddError | null>>;
   depth: number;
@@ -132,6 +136,7 @@ function SubtopicNode({
   isOpen,
   toggle,
   onAddSubtopic,
+  onSuggestSubtopic,
   addStatusByParent,
   addErrorByParent,
   depth,
@@ -251,6 +256,7 @@ function SubtopicNode({
               <AddSubtopicForm
                 parentTitle={subtopic.title}
                 onAdd={(title) => onAddSubtopic(index, title)}
+                onSuggest={() => onSuggestSubtopic(index)}
                 status={addStatusByParent[index] ?? "idle"}
                 error={addErrorByParent[index] ?? null}
               />
@@ -270,6 +276,7 @@ function SubtopicNode({
               isOpen={isOpen}
               toggle={toggle}
               onAddSubtopic={onAddSubtopic}
+              onSuggestSubtopic={onSuggestSubtopic}
               addStatusByParent={addStatusByParent}
               addErrorByParent={addErrorByParent}
               depth={depth + 1}
