@@ -26,14 +26,7 @@ type ResultTab = "summary" | "lesson" | "quiz" | "export";
 
 export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset }: ResultsViewProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>("summary");
-  const {
-    subtopics,
-    addSubtopic,
-    addRootSubtopic,
-    addRootDeepDiveSubtopic,
-    statusByParent,
-    errorByParent,
-  } = useSubtopicTree(data, model);
+  const { subtopics, addSubtopic, statusByParent, errorByParent } = useSubtopicTree(data, model);
 
   const { topic, difficulty } = data;
 
@@ -111,8 +104,6 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
             subtopics={subtopics}
             model={model}
             onAddSubtopic={addSubtopic}
-            onAddRootSubtopic={addRootSubtopic}
-            onRootDeepDive={addRootDeepDiveSubtopic}
             addStatusByParent={statusByParent}
             addErrorByParent={errorByParent}
           />

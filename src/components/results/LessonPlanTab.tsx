@@ -2,17 +2,15 @@ import type { StudySet, Subtopic, Model, AddSubtopicStatus } from "@/types";
 import { useDeepDiveExpanded } from "@/components/results/useDeepDiveExpanded";
 import { DiveButton, DeepDivePanel } from "@/components/results/DeepDivePanel";
 import { AddSubtopicForm } from "@/components/results/AddSubtopicForm";
-import { ListChecks, Target, Layers, GraduationCap, ChevronRight, Sparkles, Layers2 } from "lucide-react";
+import { ListChecks, Target, Layers, GraduationCap, ChevronRight } from "lucide-react";
 
 interface LessonPlanTabProps {
   data: StudySet;
   subtopics: Subtopic[];
   model: Model;
   onAddSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
-  onAddRootSubtopic: (requestedTitle: string) => Promise<boolean>;
-  onRootDeepDive: () => Promise<boolean>;
-  addStatusByParent: Record<number | "root" | "root-dive", AddSubtopicStatus>;
-  addErrorByParent: Record<number | "root" | "root-dive", { message: string; suggestion?: string } | null>;
+  addStatusByParent: Record<number, AddSubtopicStatus>;
+  addErrorByParent: Record<number, { message: string; suggestion?: string } | null>;
 }
 
 interface TreeNode {

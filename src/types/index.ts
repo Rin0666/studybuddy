@@ -77,14 +77,6 @@ export interface DiveRequest {
   model: Model;
 }
 
-export interface RootSubtopicRequest {
-  topic: string;
-  difficulty: Difficulty;
-  model: Model;
-  existingRootTitles: string[];
-  requestedTitle: string;
-}
-
 export const subtopicAddRequestSchema = z.object({
   topic: z.string().min(1),
   difficulty: difficultySchema,
