@@ -35,6 +35,7 @@ export const subtopicSchema = z.object({
     })
   ),
   quiz: quizSchema,
+  parentIndex: z.number().int().min(0).optional(),
 });
 export type Subtopic = z.infer<typeof subtopicSchema>;
 
@@ -59,6 +60,7 @@ export type DeepDiveResponse = z.infer<typeof deepDiveSchema>;
 
 export type GeneratorStatus = "idle" | "loading" | "success" | "error";
 export type DiveStatus = "idle" | "loading" | "success" | "error";
+export type AddSubtopicStatus = "idle" | "loading" | "success" | "error";
 
 export interface GenerateRequest {
   topic: string;
@@ -74,3 +76,34 @@ export interface DiveRequest {
   difficulty: Difficulty;
   model: Model;
 }
+
+export interface RootSubtopicRequest {
+  topic: string;
+  difficulty: Difficulty;
+  model: Model;
+  existingRootTitles: string[];
+  requestedTitle: string;
+}
+
+export const subtopicAddRequestSchema = z.object({
+  topic: z.string().min(1),
+  difficulty: difficultySchema,
+  model: modelSchema,
+  parentSubtopic: subtopicSchema.omit({ parentIndex: true }),
+  siblingTitles: z.array(z.string()),
+  requestedTitle: z.string().min(1).max(200),
+});
+export type SubtopicAddRequest = z.infer<typeof subtopicAddRequestSchema>;
+
+export const subtopicAddResponseSchema = z.union([
+  z.object({
+    valid: z.literal(true),
+    subtopic: subtopicSchema.omit({ parentIndex: true }),
+  }),
+  z.object({
+    valid: z.literal(false),
+    reason: z.string().min(1),
+    suggestion: z.string().optional(),
+  }),
+]);
+export type SubtopicAddResponse = z.infer<typeof subtopicAddResponseSchema>;

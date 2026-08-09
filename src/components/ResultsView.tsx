@@ -14,6 +14,7 @@ import { SummaryTab } from "@/components/results/SummaryTab";
 import { LessonPlanTab } from "@/components/results/LessonPlanTab";
 import { QuizTab } from "@/components/results/QuizTab";
 import { ExportTab } from "@/components/results/ExportTab";
+import { useSubtopicTree } from "@/hooks/useSubtopicTree";
 
 interface ResultsViewProps {
   data: StudySet;
@@ -25,10 +26,23 @@ type ResultTab = "summary" | "lesson" | "quiz" | "export";
 
 export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset }: ResultsViewProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>("summary");
+  const {
+    subtopics,
+    addSubtopic,
+    addRootSubtopic,
+    addRootDeepDiveSubtopic,
+    statusByParent,
+    errorByParent,
+  } = useSubtopicTree(data, model);
 
   const { topic, difficulty } = data;
 
-  const exportPayload = useMemo(() => JSON.stringify(data, null, 2), [data]);
+  const studySetWithTree: StudySet = useMemo(
+    () => ({ ...data, subtopics }),
+    [data, subtopics]
+  );
+
+  const exportPayload = useMemo(() => JSON.stringify(studySetWithTree, null, 2), [studySetWithTree]);
 
   const handleDownloadJSON = () => {
     const blob = new Blob([exportPayload], { type: "application/json" });
@@ -90,10 +104,21 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
         aria-labelledby={`tab-${activeTab}`}
         className="min-h-[12rem]"
       >
-        {activeTab === "summary" && <SummaryTab data={data} model={model} />}
-        {activeTab === "lesson" && <LessonPlanTab data={data} model={model} />}
-        {activeTab === "quiz" && <QuizTab data={data} />}
-        {activeTab === "export" && <ExportTab data={data} />}
+        {activeTab === "summary" && <SummaryTab data={studySetWithTree} model={model} />}
+        {activeTab === "lesson" && (
+          <LessonPlanTab
+            data={studySetWithTree}
+            subtopics={subtopics}
+            model={model}
+            onAddSubtopic={addSubtopic}
+            onAddRootSubtopic={addRootSubtopic}
+            onRootDeepDive={addRootDeepDiveSubtopic}
+            addStatusByParent={statusByParent}
+            addErrorByParent={errorByParent}
+          />
+        )}
+        {activeTab === "quiz" && <QuizTab data={studySetWithTree} />}
+        {activeTab === "export" && <ExportTab data={studySetWithTree} />}
       </div>
     </section>
   );
