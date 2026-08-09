@@ -40,7 +40,8 @@ const requestSchema = z.object({
     "Qwen/Qwen3-32B",
     "meta-llama/Meta-Llama-3.1-70B-Instruct",
   ]),
-  parentSubtopic: subtopicSchema,
+  parentSubtopic: subtopicSchema.optional(),
+  subjectSummary: z.string().optional(),
   siblingTitles: z.array(z.string()),
   requestedTitle: z.string().min(1).max(200),
 });
@@ -61,11 +62,17 @@ const responseSchema = z.union([successResponseSchema, invalidResponseSchema]);
 const FEATHERLESS_TIMEOUT_MS = 45_000;
 const MAX_FEATHERLESS_TOKENS = 3072;
 
-function buildSystemMessage(difficulty: string): string {
-  return `You are a strict, helpful tutor for a ${difficulty.toLowerCase()}-level learner. A student wants to drill deeper into a parent subtopic by adding a nested subtopic. Your job has two steps:
+function buildSystemMessage(difficulty: string, isRoot: boolean): string {
+  return `You are a strict, helpful tutor for a ${difficulty.toLowerCase()}-level learner. A student wants to ${
+    isRoot
+      ? "extend the lesson plan by adding a new top-level (root) subtopic to the overall subject."
+      : "drill deeper into a parent subtopic by adding a nested subtopic."
+  } Your job has two steps:
 
-1. Validate whether the requested title is a coherent, distinct, and appropriately narrow deeper subtopic of the parent. Reject titles that are identical to the parent, already-covered siblings, off-topic, too broad, or not meaningfully deeper.
-2. If valid, generate a complete, well-structured nested subtopic in the same style as the parent.
+1. Validate whether the requested title is a coherent, distinct, and appropriately scoped subtopic. Reject titles that are identical to the ${
+    isRoot ? "overall subject" : "parent"
+  }, already-covered siblings, off-topic, too broad, or not meaningfully distinct.
+2. If valid, generate a complete, well-structured subtopic in the same style as the existing ones. The subtopic must be a full-root item with no parent reference.
 
 Return ONLY valid JSON with no markdown formatting, no code fences, and no commentary outside the JSON object.`;
 }
@@ -73,17 +80,30 @@ Return ONLY valid JSON with no markdown formatting, no code fences, and no comme
 function buildUserContent(
   topic: string,
   difficulty: string,
-  parentSubtopic: Record<string, unknown>,
+  parentSubtopic: Record<string, unknown> | undefined,
   siblingTitles: string[],
-  requestedTitle: string
+  requestedTitle: string,
+  subjectSummary?: string
 ): string {
-  return [
+  const contextLines = [
     `Overall topic: ${topic}`,
     `Difficulty level: ${difficulty}`,
-    `Parent subtopic:\n${JSON.stringify(parentSubtopic, null, 2)}`,
-    `Existing sibling subtopics under this parent:\n${siblingTitles.map((t) => `- ${t}`).join("\n") || "(none yet)"}`,
-    `Requested nested subtopic title: "${requestedTitle}"`,
-    `
+  ];
+
+  if (subjectSummary) {
+    contextLines.push(`Subject summary:\n${subjectSummary}`);
+  }
+
+  if (parentSubtopic) {
+    contextLines.push(`Parent subtopic:\n${JSON.stringify(parentSubtopic, null, 2)}`);
+  }
+
+  contextLines.push(
+    `Existing sibling subtopics:\n${siblingTitles.map((t) => `- ${t}`).join("\n") || "(none yet)"}`,
+    `Requested subtopic title: "${requestedTitle}"`
+  );
+
+  contextLines.push(`
 First decide validity. If the request is invalid, return JSON exactly like:
 { "valid": false, "reason": "short reason", "suggestion": "optional better title if applicable" }
 
@@ -92,7 +112,7 @@ If valid, return JSON exactly like:
   "valid": true,
   "subtopic": {
     "title": "string (use or slightly refine the requested title)",
-    "summary": "string (2-3 paragraphs explaining this nested subtopic in depth, with examples or analogies at the ${difficulty} level)",
+    "summary": "string (2-3 paragraphs explaining this subtopic in depth, with examples or analogies at the ${difficulty} level)",
     "keyTakeaways": ["string"],
     "objectives": ["string"],
     "keyConcepts": [
@@ -111,8 +131,9 @@ If valid, return JSON exactly like:
   }
 }
 
-The quiz must contain 3 to 5 multiple-choice questions, each with exactly 4 options, one correctIndex (0-3), and a clear explanation.`,
-  ].join("\n\n");
+The quiz must contain 3 to 5 multiple-choice questions, each with exactly 4 options, one correctIndex (0-3), and a clear explanation.`);
+
+  return contextLines.join("\n\n");
 }
 
 function parseContent(rawContent: string): unknown {
@@ -193,12 +214,15 @@ Deno.serve(async (req) => {
 
     const rawBody = await req.json();
     const parsed = requestSchema.parse(rawBody);
-    const { topic, difficulty, model, parentSubtopic, siblingTitles, requestedTitle } = parsed;
+    const { topic, difficulty, model, parentSubtopic, subjectSummary, siblingTitles, requestedTitle } = parsed;
+    const isRoot = parentSubtopic === undefined;
 
     // Fast, deterministic duplicate/coherence guard before paying for an LLM call.
     const normalizedRequest = requestedTitle.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    const normalizedParent = parentSubtopic.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     const normalizedSiblings = siblingTitles.map((t) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+    const normalizedParent = parentSubtopic
+      ? parentSubtopic.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+      : topic.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
     if (
       normalizedRequest === normalizedParent ||
@@ -207,7 +231,9 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           valid: false,
-          reason: "That title is the same as the parent subtopic. Try a more specific area within it.",
+          reason: isRoot
+            ? "That title is the same as the overall subject. Try a distinct top-level subtopic."
+            : "That title is the same as the parent subtopic. Try a more specific area within it.",
         }),
         { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
       );
@@ -220,7 +246,9 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           valid: false,
-          reason: "A subtopic like that already exists under this parent.",
+          reason: isRoot
+            ? "A root subtopic like that already exists."
+            : "A subtopic like that already exists under this parent.",
           suggestion: siblingTitles.find(
             (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === duplicateSibling
           ),
@@ -229,8 +257,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const system = buildSystemMessage(difficulty);
-    const userContent = buildUserContent(topic, difficulty, parentSubtopic as Record<string, unknown>, siblingTitles, requestedTitle);
+    const system = buildSystemMessage(difficulty, isRoot);
+    const userContent = buildUserContent(topic, difficulty, parentSubtopic as Record<string, unknown> | undefined, siblingTitles, requestedTitle, subjectSummary);
 
     const json = await callFeatherless(apiKey, model, system, userContent);
     const rawContent = json?.choices?.[0]?.message?.content;

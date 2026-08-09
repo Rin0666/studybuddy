@@ -2,15 +2,17 @@ import type { StudySet, Subtopic, Model, AddSubtopicStatus } from "@/types";
 import { useDeepDiveExpanded } from "@/components/results/useDeepDiveExpanded";
 import { DiveButton, DeepDivePanel } from "@/components/results/DeepDivePanel";
 import { AddSubtopicForm } from "@/components/results/AddSubtopicForm";
-import { ListChecks, Target, Layers, GraduationCap, ChevronRight } from "lucide-react";
+import { ListChecks, Target, Layers, GraduationCap, ChevronRight, Layers2 } from "lucide-react";
 
 interface LessonPlanTabProps {
   data: StudySet;
   subtopics: Subtopic[];
   model: Model;
   onAddSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
-  addStatusByParent: Record<number, AddSubtopicStatus>;
-  addErrorByParent: Record<number, { message: string; suggestion?: string } | null>;
+  onAddRootSubtopic: (requestedTitle: string) => Promise<boolean>;
+  onRootDeepDive: () => Promise<boolean>;
+  addStatusByParent: Record<number | "root" | "root-dive", AddSubtopicStatus>;
+  addErrorByParent: Record<number | "root" | "root-dive", { message: string; suggestion?: string } | null>;
 }
 
 interface TreeNode {
@@ -44,11 +46,16 @@ export function LessonPlanTab({
   subtopics,
   model,
   onAddSubtopic,
+  onAddRootSubtopic,
+  onRootDeepDive,
   addStatusByParent,
   addErrorByParent,
 }: LessonPlanTabProps) {
   const { isOpen, toggle } = useDeepDiveExpanded();
   const tree = buildTree(subtopics);
+  const rootCount = subtopics.filter((s) => s.parentIndex === undefined).length;
+  const rootDiveKey = "root-dive" as const;
+  const rootAddKey = "root" as const;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
@@ -58,7 +65,7 @@ export function LessonPlanTab({
           <h3 className="text-lg font-bold text-foreground">Lesson Overview</h3>
         </div>
         <p className="text-foreground/80 leading-relaxed mb-6">
-          This roadmap covers <strong className="text-foreground">{subtopics.filter((s) => s.parentIndex === undefined).length} root subtopics</strong> at the{" "}
+          This roadmap covers <strong className="text-foreground">{rootCount} root subtopic{rootCount === 1 ? "" : "s"}</strong> at the{" "}
           <strong className="text-foreground">{data.difficulty}</strong> level, from core principles to applied practice.
         </p>
 
@@ -78,6 +85,29 @@ export function LessonPlanTab({
             />
           ))}
         </ul>
+
+        <div className="mt-6 pt-5 border-t border-border flex flex-col gap-4">
+          <div className="flex items-center gap-2 text-foreground">
+            <Layers2 className="w-4 h-4 text-accent" />
+            <h4 className="text-sm font-bold">Expand {data.topic}</h4>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-start">
+            <AddSubtopicForm
+              parentTitle={data.topic}
+              onAdd={onAddRootSubtopic}
+              status={addStatusByParent[rootAddKey] ?? "idle"}
+              error={addErrorByParent[rootAddKey] ?? null}
+              variant="root"
+            />
+            <AddSubtopicForm
+              parentTitle={data.topic}
+              onAdd={onRootDeepDive}
+              status={addStatusByParent[rootDiveKey] ?? "idle"}
+              error={addErrorByParent[rootDiveKey] ?? null}
+              variant="root-dive"
+            />
+          </div>
+        </div>
       </article>
     </div>
   );
@@ -90,8 +120,8 @@ interface SubtopicNodeProps {
   isOpen: (key: string) => boolean;
   toggle: (key: string) => void;
   onAddSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
-  addStatusByParent: Record<number, AddSubtopicStatus>;
-  addErrorByParent: Record<number, { message: string; suggestion?: string } | null>;
+  addStatusByParent: Record<number | "root" | "root-dive", AddSubtopicStatus>;
+  addErrorByParent: Record<number | "root" | "root-dive", { message: string; suggestion?: string } | null>;
   depth: number;
 }
 
