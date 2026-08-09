@@ -3,10 +3,12 @@ import { useStudyForge } from "@/hooks/useStudyForge";
 import { GenerateForm, type GenerateFormRequest } from "@/components/GenerateForm";
 import { ResultsView } from "@/components/ResultsView";
 import { Sparkles } from "lucide-react";
+import type { Model } from "@/types";
 
 export default function App() {
   const studyForge = useStudyForge();
   const [showResults, setShowResults] = useState(false);
+  const [model, setModel] = useState<Model>("Qwen/Qwen2.5-7B-Instruct");
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -23,6 +25,7 @@ export default function App() {
         {showResults && studyForge.data ? (
           <ResultsView
             data={studyForge.data}
+            model={model}
             onReset={() => {
               studyForge.reset();
               setShowResults(false);
@@ -33,6 +36,7 @@ export default function App() {
             status={studyForge.status}
             error={studyForge.error}
             onGenerate={async (request: GenerateFormRequest) => {
+              setModel(request.model);
               await studyForge.generate(request);
               setShowResults(true);
             }}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { StudySet } from "@/types";
+import type { StudySet, Model } from "@/types";
 import {
   ArrowLeft,
   Award,
@@ -17,12 +17,13 @@ import { ExportTab } from "@/components/results/ExportTab";
 
 interface ResultsViewProps {
   data: StudySet;
+  model?: Model;
   onReset: () => void;
 }
 
 type ResultTab = "summary" | "lesson" | "quiz" | "export";
 
-export function ResultsView({ data, onReset }: ResultsViewProps) {
+export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset }: ResultsViewProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>("summary");
 
   const { topic, difficulty } = data;
@@ -89,8 +90,8 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
         aria-labelledby={`tab-${activeTab}`}
         className="min-h-[12rem]"
       >
-        {activeTab === "summary" && <SummaryTab data={data} />}
-        {activeTab === "lesson" && <LessonPlanTab data={data} />}
+        {activeTab === "summary" && <SummaryTab data={data} model={model} />}
+        {activeTab === "lesson" && <LessonPlanTab data={data} model={model} />}
         {activeTab === "quiz" && <QuizTab data={data} />}
         {activeTab === "export" && <ExportTab data={data} />}
       </div>
