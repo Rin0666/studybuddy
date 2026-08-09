@@ -54,7 +54,6 @@ function getSuggestionOptions(suggestion?: string, suggestions: string[] = []): 
 export interface UseSubtopicTree {
   subtopics: Subtopic[];
   addSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
-  suggestSubtopic: (parentIndex: number) => Promise<boolean>;
   addRootSubtopic: (requestedTitle: string) => Promise<boolean>;
   addRootDeepDiveSubtopic: (requestedTitle?: string) => Promise<boolean>;
   statusByParent: Partial<Record<number | "root" | "root-dive", AddSubtopicStatus>>;
@@ -217,98 +216,6 @@ export function useSubtopicTree(data: StudySet, model: Model): UseSubtopicTree {
     [data.scope, data.topic, invokeAddSubtopic, model, subtopics]
   );
 
-  const suggestSubtopic = useCallback(
-    async (parentIndex: number): Promise<boolean> => {
-      setStatusByParent((prev) => ({ ...prev, [parentIndex]: "loading" }));
-      setErrorByParent((prev) => ({ ...prev, [parentIndex]: null }));
-
-      try {
-        const parentSubtopic = subtopicSchema.omit({ parentIndex: true }).parse(subtopics[parentIndex]);
-        const siblingTitles = subtopics
-          .filter((subtopic) => subtopic.parentIndex === parentIndex)
-          .map((subtopic) => subtopic.title);
-        const discoveryContext = [
-          `Find one useful, specific subtopic within "${parentSubtopic.title}" that is not already covered.`,
-          `Existing child subtopics:\n${siblingTitles.map((title) => `- ${title}`).join("\n") || "(none yet)"}`,
-          `Parent summary:\n${parentSubtopic.summary}`,
-          `Parent objectives:\n${parentSubtopic.objectives.join("\n")}`,
-        ].join("\n\n");
-
-        const { data: rawDiveData, error: diveError } = await supabase.functions.invoke("studyforge-dive", {
-          body: {
-            topic: data.topic,
-            context: withDeepDiveArrayFormat(discoveryContext),
-            target: `A distinct subtopic within ${parentSubtopic.title}`.slice(0, 200),
-            focus: "subtopic",
-            scope: data.scope,
-            difficulty: "Intermediate",
-            model,
-          },
-        });
-
-        if (diveError) throw diveError;
-        if (!rawDiveData) throw new Error("No response while suggesting a subtopic.");
-
-        const discovery = deepDiveSchema.parse(rawDiveData);
-        const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-        const excludedTitles = [parentSubtopic.title, ...siblingTitles].map(normalize);
-        const suggestedTitle = [...discovery.relatedConcepts, discovery.title]
-          .map(cleanSuggestionTitle)
-          .find((candidate) => {
-            const normalizedCandidate = normalize(candidate);
-            return (
-              candidate.length > 0 &&
-              candidate.length <= 200 &&
-              excludedTitles.every(
-                (excluded) =>
-                  excluded !== normalizedCandidate &&
-                  !excluded.includes(normalizedCandidate) &&
-                  !normalizedCandidate.includes(excluded)
-              )
-            );
-          });
-
-        if (!suggestedTitle) {
-          throw new Error("The topic explorer did not find a distinct subtopic. Please try again.");
-        }
-
-        return invokeAddSubtopic(
-          parentIndex,
-          {
-            topic: data.topic,
-            scope: data.scope,
-            difficulty: "Intermediate",
-            model,
-            parentSubtopic,
-            siblingTitles,
-            requestedTitle: suggestedTitle,
-          },
-          parentIndex
-        );
-      } catch (err) {
-        let message = "Something went wrong suggesting a subtopic — try again.";
-
-        if (err instanceof FunctionsHttpError) {
-          try {
-            const errData = await err.context.json();
-            message = errData?.error ?? err.message;
-          } catch {
-            message = err.message;
-          }
-        } else if (err instanceof z.ZodError) {
-          message = "The topic suggestion didn't match the expected format. Please try again.";
-        } else if (err instanceof Error) {
-          message = err.message;
-        }
-
-        setErrorByParent((prev) => ({ ...prev, [parentIndex]: { message } }));
-        setStatusByParent((prev) => ({ ...prev, [parentIndex]: "error" }));
-        return false;
-      }
-    },
-    [data.scope, data.topic, invokeAddSubtopic, model, subtopics]
-  );
-
   const addRootSubtopic = useCallback(
     async (requestedTitle: string): Promise<boolean> => {
       const existingRootTitles = subtopics
@@ -431,7 +338,6 @@ export function useSubtopicTree(data: StudySet, model: Model): UseSubtopicTree {
   return {
     subtopics,
     addSubtopic,
-    suggestSubtopic,
     addRootSubtopic,
     addRootDeepDiveSubtopic,
     statusByParent,

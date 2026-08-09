@@ -2,18 +2,15 @@ import { useState } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import PptxGenJS from "pptxgenjs";
 import type { StudySet } from "@/types";
-import { FileText, Presentation, Download, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-
-type ExportState = "idle" | "loading" | "done" | "error";
+import { FileText, Presentation, Download, Loader2, CheckCircle2 } from "lucide-react";
 
 interface ExportTabProps {
   data: StudySet;
 }
 
 export function ExportTab({ data }: ExportTabProps) {
-  const [pdfState, setPdfState] = useState<ExportState>("idle");
-  const [pptxState, setPptxState] = useState<ExportState>("idle");
-  const [pptxError, setPptxError] = useState<string | null>(null);
+  const [pdfState, setPdfState] = useState<"idle" | "loading" | "done">("idle");
+  const [pptxState, setPptxState] = useState<"idle" | "loading" | "done">("idle");
 
   const safeFileName = data.topic.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "").toLowerCase() || "study_set";
 
@@ -88,7 +85,7 @@ export function ExportTab({ data }: ExportTabProps) {
     };
 
     let currentPage = pdfDoc.addPage(pageSize);
-    const { height } = currentPage.getSize();
+    const { width, height } = currentPage.getSize();
     let y = height - margin;
 
     currentPage.drawText(data.topic, {
@@ -184,23 +181,18 @@ export function ExportTab({ data }: ExportTabProps) {
     });
 
     const pdfBytes = await pdfDoc.save();
-    const pdfBuffer = Uint8Array.from(pdfBytes).buffer;
-    download(new Blob([pdfBuffer], { type: "application/pdf" }), `${safeFileName}_study_set.pdf`);
+    download(new Blob([pdfBytes], { type: "application/pdf" }), `${safeFileName}_study_set.pdf`);
     setPdfState("done");
     setTimeout(() => setPdfState("idle"), 2000);
   };
 
   const buildPptx = async () => {
-    if (pptxState === "loading") return;
     setPptxState("loading");
-    setPptxError(null);
-
-    try {
-      const pptx = new PptxGenJS();
-      pptx.title = data.topic;
-      pptx.subject = `StudyForge ${data.scope} scope lesson`;
-      pptx.author = "StudyForge";
-      pptx.layout = "LAYOUT_16x9";
+    const pptx = new PptxGenJS();
+    pptx.title = data.topic;
+    pptx.subject = `StudyForge ${data.scope} scope lesson`;
+    pptx.author = "StudyForge";
+    pptx.layout = "LAYOUT_16x9";
 
     pptx.defineSlideMaster({
       title: "MASTER_SLIDE",
@@ -247,14 +239,12 @@ export function ExportTab({ data }: ExportTabProps) {
       });
     });
 
-      await pptx.writeFile({ fileName: `${safeFileName}_study_set.pptx` });
-      setPptxState("done");
-      setTimeout(() => setPptxState("idle"), 2000);
-    } catch (error) {
-      console.error("PowerPoint export failed:", error);
-      setPptxError(error instanceof Error ? error.message : "The PowerPoint file could not be created.");
-      setPptxState("error");
+    const blob = await pptx.write({ fileName: `${safeFileName}_study_set.pptx` });
+    if (blob instanceof Blob) {
+      download(blob, `${safeFileName}_study_set.pptx`);
     }
+    setPptxState("done");
+    setTimeout(() => setPptxState("idle"), 2000);
   };
 
   return (
@@ -281,7 +271,6 @@ export function ExportTab({ data }: ExportTabProps) {
             state={pptxState}
             onClick={buildPptx}
             accent="secondary"
-            error={pptxError}
           />
         </div>
       </article>
@@ -293,16 +282,14 @@ interface ExportButtonProps {
   icon: React.ReactNode;
   label: string;
   description: string;
-  state: ExportState;
+  state: "idle" | "loading" | "done";
   onClick: () => void;
   accent: "primary" | "secondary";
-  error?: string | null;
 }
 
-function ExportButton({ icon, label, description, state, onClick, accent, error }: ExportButtonProps) {
+function ExportButton({ icon, label, description, state, onClick, accent }: ExportButtonProps) {
   const isLoading = state === "loading";
   const isDone = state === "done";
-  const isError = state === "error";
 
   return (
     <button
@@ -313,8 +300,6 @@ function ExportButton({ icon, label, description, state, onClick, accent, error 
           ? "bg-muted border-border cursor-wait"
           : isDone
           ? "bg-green-50 border-green-200"
-          : isError
-          ? "bg-destructive/5 border-destructive/30 hover:border-destructive/50 cursor-pointer"
           : accent === "primary"
           ? "bg-white border-border hover:border-primary/40 hover:shadow-sm hover:-translate-y-0.5 cursor-pointer"
           : "bg-white border-border hover:border-secondary/40 hover:shadow-sm hover:-translate-y-0.5 cursor-pointer"
@@ -324,33 +309,19 @@ function ExportButton({ icon, label, description, state, onClick, accent, error 
         className={`inline-flex h-11 w-11 items-center justify-center rounded-xl shrink-0 transition-colors ${
           isDone
             ? "bg-green-100 text-green-700"
-            : isError
-            ? "bg-destructive/10 text-destructive"
             : accent === "primary"
             ? "bg-primary/10 text-primary group-hover:bg-primary/20"
             : "bg-secondary/10 text-secondary group-hover:bg-secondary/20"
         }`}
       >
-        {isLoading ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
-        ) : isDone ? (
-          <CheckCircle2 className="w-5 h-5" />
-        ) : isError ? (
-          <AlertCircle className="w-5 h-5" />
-        ) : (
-          icon
-        )}
+        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isDone ? <CheckCircle2 className="w-5 h-5" /> : icon}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-foreground">
-            {isDone ? "Downloaded" : isLoading ? "Preparing PowerPoint…" : isError ? "Try PowerPoint again" : label}
-          </span>
+          <span className="font-bold text-foreground">{isDone ? "Downloaded" : label}</span>
           {!isLoading && !isDone && <Download className="w-4 h-4 text-foreground/40 group-hover:text-foreground/70 transition-colors" />}
         </div>
-        <p className="text-sm text-foreground/60 mt-1">
-          {isDone ? "Check your downloads folder." : isError ? error ?? "Export failed. Click to retry." : description}
-        </p>
+        <p className="text-sm text-foreground/60 mt-1">{isDone ? "Check your downloads folder." : description}</p>
       </div>
     </button>
   );

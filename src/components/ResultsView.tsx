@@ -29,7 +29,6 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
   const {
     subtopics,
     addSubtopic,
-    suggestSubtopic,
     addRootSubtopic,
     addRootDeepDiveSubtopic,
     statusByParent,
@@ -112,7 +111,6 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
             subtopics={subtopics}
             model={model}
             onAddSubtopic={addSubtopic}
-            onSuggestSubtopic={suggestSubtopic}
             onAddRootSubtopic={addRootSubtopic}
             onRootDeepDive={addRootDeepDiveSubtopic}
             addStatusByParent={statusByParent}
