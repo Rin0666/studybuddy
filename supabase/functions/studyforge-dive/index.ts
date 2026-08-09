@@ -12,7 +12,7 @@ const diveRequestSchema = z.object({
   context: z.string().min(1).max(2000),
   target: z.string().min(1).max(200),
   focus: z.enum(["overview", "key-concept", "subtopic"]),
-  difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]),
+  scope: z.enum(["Quick", "Standard", "Comprehensive"]),
   model: z.enum([
     "Qwen/Qwen2.5-7B-Instruct",
     "Qwen/Qwen3-32B",
@@ -20,31 +20,59 @@ const diveRequestSchema = z.object({
   ]),
 });
 
+const stringArraySchema = z.preprocess((value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // Fall back to treating newline- or semicolon-delimited text as a list.
+  }
+
+  return trimmed
+    .split(/\r?\n|;\s*/)
+    .map((item) => item.replace(/^[-*\d.)\s]+/, "").trim())
+    .filter(Boolean);
+}, z.array(z.string()));
+
 const deepDiveSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
-  examples: z.array(z.string()),
-  analogies: z.array(z.string()),
-  relatedConcepts: z.array(z.string()),
-  followUpQuestions: z.array(z.string()),
+  examples: stringArraySchema,
+  analogies: stringArraySchema,
+  relatedConcepts: stringArraySchema,
+  followUpQuestions: stringArraySchema,
 });
 
-function buildSystemMessage(difficulty: string): string {
-  return `You are a helpful tutor creating an expanded deep-dive explanation for a ${difficulty.toLowerCase()}-level learner. Given a topic, surrounding context, and a specific focus, produce a richer explanation with concrete examples, analogies, related concepts, and follow-up questions. Return ONLY valid JSON with no markdown formatting, no code fences, and no commentary outside the JSON object.`;
+function scopeGuidance(scope: string): string {
+  if (scope === "Quick") return "Keep the explanation concise and focus on the most essential insight.";
+  if (scope === "Comprehensive") return "Explore the focus thoroughly from multiple angles, including nuances, connections, limitations, and several useful examples.";
+  return "Give a balanced explanation with the major ideas, connections, and practical examples.";
 }
 
-function buildUserContent(topic: string, context: string, target: string, focus: string): string {
+function buildSystemMessage(scope: string): string {
+  return `You are a helpful tutor creating an expanded deep-dive explanation. ${scopeGuidance(scope)} Given a topic, surrounding context, and a specific focus, produce an explanation with concrete examples, analogies, related concepts, and follow-up questions. Return ONLY valid JSON with no markdown formatting, no code fences, and no commentary outside the JSON object.`;
+}
+
+function buildUserContent(topic: string, context: string, target: string, focus: string, scope: string): string {
   return `Topic: ${topic}
 
 Context: ${context}
 
 Dive deeper into: "${target}" (${focus})
 
+Scope: ${scope}. ${scopeGuidance(scope)}
+
 Return only valid JSON matching this schema:
 
 {
   "title": "string (clear title for this deep dive)",
-  "content": "string (2-4 paragraphs thoroughly explaining the target in depth, using language suitable for the difficulty level)",
+  "content": "string (a clear explanation whose breadth matches the requested scope)",
   "examples": ["string (concrete, real-world examples)"],
   "analogies": ["string (helpful analogies that make the concept click)"],
   "relatedConcepts": ["string (related ideas the learner should explore next)"],
@@ -59,7 +87,7 @@ const MAX_ATTEMPTS = 2;
 async function callFeatherless(
   apiKey: string,
   model: string,
-  difficulty: string,
+  scope: string,
   topic: string,
   context: string,
   target: string,
@@ -79,8 +107,8 @@ async function callFeatherless(
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: buildSystemMessage(difficulty) },
-          { role: "user", content: buildUserContent(topic, context, target, focus) },
+          { role: "system", content: buildSystemMessage(scope) },
+          { role: "user", content: buildUserContent(topic, context, target, focus, scope) },
         ],
         temperature: 0.6,
         max_tokens: MAX_FEATHERLESS_TOKENS,
@@ -137,12 +165,12 @@ Deno.serve(async (req) => {
 
     const rawBody = await req.json();
     const parsed = diveRequestSchema.parse(rawBody);
-    const { topic, context, target, focus, difficulty, model } = parsed;
+    const { topic, context, target, focus, scope, model } = parsed;
 
     let lastValidationError: z.ZodError | null = null;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const json = await callFeatherless(apiKey, model, difficulty, topic, context, target, focus);
+      const json = await callFeatherless(apiKey, model, scope, topic, context, target, focus);
       const rawContent = json?.choices?.[0]?.message?.content;
       if (!rawContent || typeof rawContent !== "string") {
         throw new Error("Invalid response from Featherless AI.");

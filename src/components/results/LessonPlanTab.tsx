@@ -1,4 +1,4 @@
-import type { StudySet, Subtopic, Model, AddSubtopicStatus } from "@/types";
+import type { StudySet, Subtopic, Model, AddSubtopicStatus, SubtopicAddError } from "@/types";
 import { useDeepDiveExpanded } from "@/components/results/useDeepDiveExpanded";
 import { DiveButton, DeepDivePanel } from "@/components/results/DeepDivePanel";
 import { AddSubtopicForm } from "@/components/results/AddSubtopicForm";
@@ -10,9 +10,9 @@ interface LessonPlanTabProps {
   model: Model;
   onAddSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
   onAddRootSubtopic: (requestedTitle: string) => Promise<boolean>;
-  onRootDeepDive: () => Promise<boolean>;
-  addStatusByParent: Record<number | "root" | "root-dive", AddSubtopicStatus>;
-  addErrorByParent: Record<number | "root" | "root-dive", { message: string; suggestion?: string } | null>;
+  onRootDeepDive: (requestedTitle?: string) => Promise<boolean>;
+  addStatusByParent: Partial<Record<number | "root" | "root-dive", AddSubtopicStatus>>;
+  addErrorByParent: Partial<Record<number | "root" | "root-dive", SubtopicAddError | null>>;
 }
 
 interface TreeNode {
@@ -66,7 +66,7 @@ export function LessonPlanTab({
         </div>
         <p className="text-foreground/80 leading-relaxed mb-6">
           This roadmap covers <strong className="text-foreground">{rootCount} root subtopic{rootCount === 1 ? "" : "s"}</strong> at the{" "}
-          <strong className="text-foreground">{data.difficulty}</strong> level, from core principles to applied practice.
+          <strong className="text-foreground">{data.scope}</strong> scope, from core principles to applied practice.
         </p>
 
         <ul className="space-y-4">
@@ -120,8 +120,8 @@ interface SubtopicNodeProps {
   isOpen: (key: string) => boolean;
   toggle: (key: string) => void;
   onAddSubtopic: (parentIndex: number, requestedTitle: string) => Promise<boolean>;
-  addStatusByParent: Record<number | "root" | "root-dive", AddSubtopicStatus>;
-  addErrorByParent: Record<number | "root" | "root-dive", { message: string; suggestion?: string } | null>;
+  addStatusByParent: Partial<Record<number | "root" | "root-dive", AddSubtopicStatus>>;
+  addErrorByParent: Partial<Record<number | "root" | "root-dive", SubtopicAddError | null>>;
   depth: number;
 }
 
@@ -222,7 +222,7 @@ function SubtopicNode({
                           ].join("\n\n")}
                           target={concept.concept}
                           focus="key-concept"
-                          difficulty={data.difficulty}
+                          scope={data.scope}
                           model={model}
                           onClose={() => toggle(conceptKey)}
                         />
@@ -240,7 +240,7 @@ function SubtopicNode({
                   context={[data.summary, subtopic.title, subtopic.summary, ...subtopic.objectives].join("\n\n")}
                   target={subtopic.title}
                   focus="subtopic"
-                  difficulty={data.difficulty}
+                  scope={data.scope}
                   model={model}
                   onClose={() => toggle(subtopicKey)}
                 />

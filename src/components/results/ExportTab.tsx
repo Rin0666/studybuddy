@@ -97,7 +97,7 @@ export function ExportTab({ data }: ExportTabProps) {
     });
     y -= 40;
 
-    currentPage.drawText(`Difficulty: ${data.difficulty}`, {
+    currentPage.drawText(`Scope: ${data.scope}`, {
       x: margin,
       y,
       size: 14,
@@ -190,7 +190,7 @@ export function ExportTab({ data }: ExportTabProps) {
     setPptxState("loading");
     const pptx = new PptxGenJS();
     pptx.title = data.topic;
-    pptx.subject = `StudyForge ${data.difficulty} lesson`;
+    pptx.subject = `StudyForge ${data.scope} scope lesson`;
     pptx.author = "StudyForge";
     pptx.layout = "LAYOUT_16x9";
 
@@ -206,7 +206,7 @@ export function ExportTab({ data }: ExportTabProps) {
     const titleSlide = pptx.addSlide();
     titleSlide.background = { color: "FFFFFF" };
     titleSlide.addText(data.topic, { x: 1, y: 2.5, w: 8, h: 1.5, fontSize: 40, bold: true, color: "7C3AED", align: "center" });
-    titleSlide.addText(`${data.difficulty} · StudyForge Lesson`, { x: 1, y: 4.2, w: 8, h: 0.5, fontSize: 18, color: "475569", align: "center" });
+    titleSlide.addText(`${data.scope} scope · StudyForge Lesson`, { x: 1, y: 4.2, w: 8, h: 0.5, fontSize: 18, color: "475569", align: "center" });
 
     const summarySlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
     summarySlide.addText("Summary", { x: 0.5, y: 0.6, w: 9, h: 0.6, fontSize: 28, bold: true, color: "0F172A" });

@@ -41,17 +41,17 @@ interface DeepDivePanelProps {
   context: string;
   target: string;
   focus: "overview" | "key-concept" | "subtopic";
-  difficulty: StudySet["difficulty"];
+  scope: StudySet["scope"];
   model: Model;
   onClose: () => void;
 }
 
-export function DeepDivePanel({ topic, context, target, focus, difficulty, model, onClose }: DeepDivePanelProps) {
+export function DeepDivePanel({ topic, context, target, focus, scope, model, onClose }: DeepDivePanelProps) {
   const { status, error, data, dive, reset } = useDeepDive();
 
   const handleDive = () => {
     reset();
-    dive({ topic, context, target, focus, difficulty, model });
+    dive({ topic, context, target, focus, scope, model });
   };
 
   const closed = () => {

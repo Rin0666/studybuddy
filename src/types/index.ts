@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const difficultySchema = z.enum(["Beginner", "Intermediate", "Advanced"]);
-export type Difficulty = z.infer<typeof difficultySchema>;
+export const scopeSchema = z.enum(["Quick", "Standard", "Comprehensive"]);
+export type Scope = z.infer<typeof scopeSchema>;
 
 export const modelSchema = z.enum([
   "Qwen/Qwen2.5-7B-Instruct",
@@ -41,20 +41,41 @@ export type Subtopic = z.infer<typeof subtopicSchema>;
 
 export const studySetSchema = z.object({
   topic: z.string(),
-  difficulty: difficultySchema,
+  scope: scopeSchema,
   summary: z.string().min(1),
   keyTakeaways: z.array(z.string()),
-  subtopics: z.array(subtopicSchema).min(2).max(6),
+  // No maximum: scope and topic complexity determine the useful coverage.
+  subtopics: z.array(subtopicSchema).min(2),
 });
 export type StudySet = z.infer<typeof studySetSchema>;
+
+const stringArraySchema = z.preprocess((value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // Fall back to treating newline- or semicolon-delimited text as a list.
+  }
+
+  return trimmed
+    .split(/\r?\n|;\s*/)
+    .map((item) => item.replace(/^[-*\d.)\s]+/, "").trim())
+    .filter(Boolean);
+}, z.array(z.string()));
 
 export const deepDiveSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
-  examples: z.array(z.string()),
-  analogies: z.array(z.string()),
-  relatedConcepts: z.array(z.string()),
-  followUpQuestions: z.array(z.string()),
+  examples: stringArraySchema,
+  analogies: stringArraySchema,
+  relatedConcepts: stringArraySchema,
+  followUpQuestions: stringArraySchema,
 });
 export type DeepDiveResponse = z.infer<typeof deepDiveSchema>;
 
@@ -62,9 +83,15 @@ export type GeneratorStatus = "idle" | "loading" | "success" | "error";
 export type DiveStatus = "idle" | "loading" | "success" | "error";
 export type AddSubtopicStatus = "idle" | "loading" | "success" | "error";
 
+export interface SubtopicAddError {
+  message: string;
+  suggestion?: string;
+  suggestions?: string[];
+}
+
 export interface GenerateRequest {
   topic: string;
-  difficulty: Difficulty;
+  scope: Scope;
   model: Model;
 }
 
@@ -73,13 +100,13 @@ export interface DiveRequest {
   context: string;
   target: string;
   focus: "overview" | "key-concept" | "subtopic";
-  difficulty: Difficulty;
+  scope: Scope;
   model: Model;
 }
 
 export interface RootSubtopicRequest {
   topic: string;
-  difficulty: Difficulty;
+  scope: Scope;
   model: Model;
   existingRootTitles: string[];
   requestedTitle: string;
@@ -87,11 +114,13 @@ export interface RootSubtopicRequest {
 
 export const subtopicAddRequestSchema = z.object({
   topic: z.string().min(1),
-  difficulty: difficultySchema,
+  scope: scopeSchema,
   model: modelSchema,
-  parentSubtopic: subtopicSchema.omit({ parentIndex: true }),
+  parentSubtopic: subtopicSchema.omit({ parentIndex: true }).optional(),
+  subjectSummary: z.string().optional(),
   siblingTitles: z.array(z.string()),
   requestedTitle: z.string().min(1).max(200),
+  autoSuggest: z.boolean().optional(),
 });
 export type SubtopicAddRequest = z.infer<typeof subtopicAddRequestSchema>;
 
@@ -104,6 +133,7 @@ export const subtopicAddResponseSchema = z.union([
     valid: z.literal(false),
     reason: z.string().min(1),
     suggestion: z.string().optional(),
+    suggestions: z.array(z.string()).optional(),
   }),
 ]);
 export type SubtopicAddResponse = z.infer<typeof subtopicAddResponseSchema>;

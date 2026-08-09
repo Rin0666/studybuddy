@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
 import { z } from "zod";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import { deepDiveSchema, type DeepDiveResponse, type DiveStatus, type Difficulty, type Model } from "@/types";
+import { deepDiveSchema, type DeepDiveResponse, type DiveStatus, type Scope, type Model } from "@/types";
 import supabase from "@/lib/supabase";
+import { withDeepDiveArrayFormat } from "@/lib/deepDiveFormat";
 
 export interface UseDeepDive {
   status: DiveStatus;
@@ -13,10 +14,19 @@ export interface UseDeepDive {
     context: string;
     target: string;
     focus: "overview" | "key-concept" | "subtopic";
-    difficulty: Difficulty;
+    scope: Scope;
     model: Model;
   }) => Promise<void>;
   reset: () => void;
+}
+
+async function readFunctionError(error: FunctionsHttpError): Promise<string> {
+  try {
+    const errorData = await error.context.json();
+    return errorData?.error ?? error.message;
+  } catch {
+    return error.message;
+  }
 }
 
 export function useDeepDive(): UseDeepDive {
@@ -29,18 +39,45 @@ export function useDeepDive(): UseDeepDive {
     context: string;
     target: string;
     focus: "overview" | "key-concept" | "subtopic";
-    difficulty: Difficulty;
+    scope: Scope;
     model: Model;
   }) => {
     setStatus("loading");
     setError(null);
 
     try {
-      const { data: rawData, error: fnError } = await supabase.functions.invoke("studyforge-dive", {
-        body: request,
+      const body = {
+        ...request,
+        context: withDeepDiveArrayFormat(request.context),
+        difficulty: "Intermediate",
+      };
+
+      let result = await supabase.functions.invoke("studyforge-dive", {
+        body,
       });
 
-      if (fnError) throw fnError;
+      if (result.error) {
+        const firstMessage = await readFunctionError(result.error);
+        const isLegacyArrayFormatError =
+          firstMessage.includes('"expected": "array"') ||
+          firstMessage.toLowerCase().includes("expected array");
+
+        if (!isLegacyArrayFormatError) throw new Error(firstMessage);
+
+        // The older hosted validator rejects malformed model output before the
+        // browser can normalize it. A fresh generation usually corrects the
+        // stochastic formatting mistake.
+        result = await supabase.functions.invoke("studyforge-dive", {
+          body: {
+            ...body,
+            target: `${request.target} (strict JSON arrays required)`.slice(0, 200),
+          },
+        });
+
+        if (result.error) throw new Error(await readFunctionError(result.error));
+      }
+
+      const { data: rawData } = result;
       if (!rawData) throw new Error("No response from deep dive generator.");
 
       const parsed = deepDiveSchema.parse(rawData);

@@ -35,7 +35,7 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
     errorByParent,
   } = useSubtopicTree(data, model);
 
-  const { topic, difficulty } = data;
+  const { topic, scope } = data;
 
   const studySetWithTree: StudySet = useMemo(
     () => ({ ...data, subtopics }),
@@ -69,7 +69,7 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-2">
             <Award className="w-3.5 h-3.5" />
-            {difficulty}
+            {scope} scope
           </span>
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             {topic}

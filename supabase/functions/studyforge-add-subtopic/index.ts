@@ -34,7 +34,7 @@ const subtopicSchema = z.object({
 
 const requestSchema = z.object({
   topic: z.string().min(1),
-  difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]),
+  scope: z.enum(["Quick", "Standard", "Comprehensive"]),
   model: z.enum([
     "Qwen/Qwen2.5-7B-Instruct",
     "Qwen/Qwen3-32B",
@@ -44,6 +44,7 @@ const requestSchema = z.object({
   subjectSummary: z.string().optional(),
   siblingTitles: z.array(z.string()),
   requestedTitle: z.string().min(1).max(200),
+  autoSuggest: z.boolean().optional().default(false),
 });
 
 const successResponseSchema = z.object({
@@ -55,6 +56,7 @@ const invalidResponseSchema = z.object({
   valid: z.literal(false),
   reason: z.string().min(1),
   suggestion: z.string().optional(),
+  suggestions: z.array(z.string()).optional(),
 });
 
 const responseSchema = z.union([successResponseSchema, invalidResponseSchema]);
@@ -62,32 +64,43 @@ const responseSchema = z.union([successResponseSchema, invalidResponseSchema]);
 const FEATHERLESS_TIMEOUT_MS = 45_000;
 const MAX_FEATHERLESS_TOKENS = 3072;
 
-function buildSystemMessage(difficulty: string, isRoot: boolean): string {
-  return `You are a strict, helpful tutor for a ${difficulty.toLowerCase()}-level learner. A student wants to ${
+function scopeGuidance(scope: string): string {
+  if (scope === "Quick") return "Keep the new section concise and focused on essential knowledge.";
+  if (scope === "Comprehensive") return "Develop the new section thoroughly, including important nuances, connections, and examples.";
+  return "Give the new section balanced depth with its major ideas and practical connections.";
+}
+
+function buildSystemMessage(scope: string, isRoot: boolean, autoSuggest: boolean): string {
+  return `You are a strict, helpful tutor. ${scopeGuidance(scope)} A student wants to ${
     isRoot
       ? "extend the lesson plan by adding a new top-level (root) subtopic to the overall subject."
       : "drill deeper into a parent subtopic by adding a nested subtopic."
+  } ${
+    autoSuggest
+      ? "The student wants you to choose the next topic. Propose one meaningful root subtopic that is not already covered."
+      : "The student has supplied the subtopic title."
   } Your job has two steps:
 
-1. Validate whether the requested title is a coherent, distinct, and appropriately scoped subtopic. Reject titles that are identical to the ${
+1. ${autoSuggest ? "Choose and validate a title that" : "Validate whether the requested title"} is a coherent, distinct, and appropriately scoped subtopic. Reject titles that are identical to the ${
     isRoot ? "overall subject" : "parent"
   }, already-covered siblings, off-topic, too broad, or not meaningfully distinct.
-2. If valid, generate a complete, well-structured subtopic in the same style as the existing ones. The subtopic must be a full-root item with no parent reference.
+2. If valid, generate a complete, well-structured subtopic in the same style as the existing ones. Do not include a parent reference; the client attaches generated nested subtopics to their parent.
 
 Return ONLY valid JSON with no markdown formatting, no code fences, and no commentary outside the JSON object.`;
 }
 
 function buildUserContent(
   topic: string,
-  difficulty: string,
+  scope: string,
   parentSubtopic: Record<string, unknown> | undefined,
   siblingTitles: string[],
   requestedTitle: string,
-  subjectSummary?: string
+  subjectSummary?: string,
+  autoSuggest = false
 ): string {
   const contextLines = [
     `Overall topic: ${topic}`,
-    `Difficulty level: ${difficulty}`,
+    `Requested scope: ${scope}`,
   ];
 
   if (subjectSummary) {
@@ -100,19 +113,23 @@ function buildUserContent(
 
   contextLines.push(
     `Existing sibling subtopics:\n${siblingTitles.map((t) => `- ${t}`).join("\n") || "(none yet)"}`,
-    `Requested subtopic title: "${requestedTitle}"`
+    autoSuggest
+      ? "Requested action: Choose one new top-level subtopic that explores a useful deeper or broader area not covered by the existing root subtopics."
+      : `Requested subtopic title: "${requestedTitle}"`
   );
 
   contextLines.push(`
 First decide validity. If the request is invalid, return JSON exactly like:
-{ "valid": false, "reason": "short reason", "suggestion": "optional better title if applicable" }
+{ "valid": false, "reason": "short reason", "suggestions": ["one or more concise, distinct title options"] }
+
+When multiple narrower directions would work, return each one as a separate item in suggestions. Never combine alternatives into a single title using "or".
 
 If valid, return JSON exactly like:
 {
   "valid": true,
   "subtopic": {
-    "title": "string (use or slightly refine the requested title)",
-    "summary": "string (2-3 paragraphs explaining this subtopic in depth, with examples or analogies at the ${difficulty} level)",
+    "title": "string (${autoSuggest ? "choose a distinct title not present in the existing sibling list" : "use or slightly refine the requested title"})",
+    "summary": "string (explain this subtopic with breadth appropriate for ${scope} scope, including useful examples or analogies)",
     "keyTakeaways": ["string"],
     "objectives": ["string"],
     "keyConcepts": [
@@ -214,7 +231,7 @@ Deno.serve(async (req) => {
 
     const rawBody = await req.json();
     const parsed = requestSchema.parse(rawBody);
-    const { topic, difficulty, model, parentSubtopic, subjectSummary, siblingTitles, requestedTitle } = parsed;
+    const { topic, scope, model, parentSubtopic, subjectSummary, siblingTitles, requestedTitle, autoSuggest } = parsed;
     const isRoot = parentSubtopic === undefined;
 
     // Fast, deterministic duplicate/coherence guard before paying for an LLM call.
@@ -225,8 +242,9 @@ Deno.serve(async (req) => {
       : topic.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
     if (
-      normalizedRequest === normalizedParent ||
-      (normalizedParent.length > 4 && normalizedRequest.includes(normalizedParent))
+      !autoSuggest &&
+      (normalizedRequest === normalizedParent ||
+        (normalizedParent.length > 4 && normalizedRequest.includes(normalizedParent)))
     ) {
       return new Response(
         JSON.stringify({
@@ -239,9 +257,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const duplicateSibling = normalizedSiblings.find(
-      (s) => s === normalizedRequest || s.includes(normalizedRequest) || normalizedRequest.includes(s)
-    );
+    const duplicateSibling = autoSuggest
+      ? undefined
+      : normalizedSiblings.find(
+          (s) => s === normalizedRequest || s.includes(normalizedRequest) || normalizedRequest.includes(s)
+        );
     if (duplicateSibling) {
       return new Response(
         JSON.stringify({
@@ -257,8 +277,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const system = buildSystemMessage(difficulty, isRoot);
-    const userContent = buildUserContent(topic, difficulty, parentSubtopic as Record<string, unknown> | undefined, siblingTitles, requestedTitle, subjectSummary);
+    const system = buildSystemMessage(scope, isRoot, autoSuggest);
+    const userContent = buildUserContent(
+      topic,
+      scope,
+      parentSubtopic as Record<string, unknown> | undefined,
+      siblingTitles,
+      requestedTitle,
+      subjectSummary,
+      autoSuggest
+    );
 
     const json = await callFeatherless(apiKey, model, system, userContent);
     const rawContent = json?.choices?.[0]?.message?.content;

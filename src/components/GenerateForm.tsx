@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { difficultySchema, modelSchema, type Difficulty, type Model, type GeneratorStatus } from "@/types";
+import { scopeSchema, modelSchema, type Scope, type Model, type GeneratorStatus } from "@/types";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export interface GenerateFormRequest {
   topic: string;
-  difficulty: Difficulty;
+  scope: Scope;
   model: Model;
 }
 
-const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
+const SCOPES: { value: Scope; label: string; description: string }[] = [
+  { value: "Quick", label: "Quick", description: "core essentials" },
+  { value: "Standard", label: "Standard", description: "balanced major coverage" },
+  { value: "Comprehensive", label: "Comprehensive", description: "all important learning areas" },
+];
 
 const MODELS: { value: Model; label: string }[] = [
   { value: "Qwen/Qwen2.5-7B-Instruct", label: "Qwen 2.5 7B (balanced)" },
@@ -24,7 +28,7 @@ interface GenerateFormProps {
 
 export function GenerateForm({ status, error, onGenerate }: GenerateFormProps) {
   const [topic, setTopic] = useState("");
-  const [difficulty, setDifficulty] = useState<Difficulty>("Intermediate");
+  const [scope, setScope] = useState<Scope>("Standard");
   const [model, setModel] = useState<Model>("Qwen/Qwen2.5-7B-Instruct");
   const [touched, setTouched] = useState(false);
 
@@ -38,7 +42,7 @@ export function GenerateForm({ status, error, onGenerate }: GenerateFormProps) {
 
     onGenerate({
       topic: topic.trim(),
-      difficulty: difficultySchema.parse(difficulty),
+      scope: scopeSchema.parse(scope),
       model: modelSchema.parse(model),
     });
   };
@@ -50,7 +54,7 @@ export function GenerateForm({ status, error, onGenerate }: GenerateFormProps) {
           Turn any topic into a complete study guide
         </h2>
         <p className="text-lg text-foreground/70 max-w-xl mx-auto leading-relaxed">
-          Enter a subject and get an in-depth breakdown with focused subtopics and a quiz for each one.
+          Choose how broad your guide should be, from a quick foundation to a comprehensive overview.
         </p>
       </div>
 
@@ -77,19 +81,19 @@ export function GenerateForm({ status, error, onGenerate }: GenerateFormProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
-            <label htmlFor="difficulty" className="text-sm font-semibold text-foreground">
-              Difficulty
+            <label htmlFor="scope" className="text-sm font-semibold text-foreground">
+              Scope
             </label>
             <select
-              id="difficulty"
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+              id="scope"
+              value={scope}
+              onChange={(e) => setScope(e.target.value as Scope)}
               disabled={isLoading}
               className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary disabled:opacity-60 appearance-none cursor-pointer"
             >
-              {DIFFICULTIES.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+              {SCOPES.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} — {option.description}
                 </option>
               ))}
             </select>

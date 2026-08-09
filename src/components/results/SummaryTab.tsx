@@ -54,7 +54,7 @@ function OverviewSection({
             context={data.summary}
             target={data.topic}
             focus="overview"
-            difficulty={data.difficulty}
+            scope={data.scope}
             model={model}
             onClose={() => toggle(key)}
           />
@@ -103,7 +103,7 @@ function KeyTakeawaysSection({
                     context={[data.summary, ...data.keyTakeaways].join("\n\n")}
                     target={takeaway}
                     focus="key-concept"
-                    difficulty={data.difficulty}
+                    scope={data.scope}
                     model={model}
                     onClose={() => toggle(key)}
                   />
