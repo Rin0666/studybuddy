@@ -47,30 +47,10 @@ export const studySetSchema = z.object({
 });
 export type StudySet = z.infer<typeof studySetSchema>;
 
-export const deepDiveSchema = z.object({
-  title: z.string().min(1),
-  content: z.string().min(1),
-  examples: z.array(z.string()),
-  analogies: z.array(z.string()),
-  relatedConcepts: z.array(z.string()),
-  followUpQuestions: z.array(z.string()),
-});
-export type DeepDiveResponse = z.infer<typeof deepDiveSchema>;
-
 export type GeneratorStatus = "idle" | "loading" | "success" | "error";
-export type DiveStatus = "idle" | "loading" | "success" | "error";
 
 export interface GenerateRequest {
   topic: string;
-  difficulty: Difficulty;
-  model: Model;
-}
-
-export interface DiveRequest {
-  topic: string;
-  context: string;
-  target: string;
-  focus: "overview" | "key-concept" | "subtopic";
   difficulty: Difficulty;
   model: Model;
 }
