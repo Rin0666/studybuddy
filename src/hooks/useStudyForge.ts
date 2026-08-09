@@ -1,14 +1,14 @@
 import { useState, useCallback } from "react";
 import { z } from "zod";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import { studySetSchema, type GenerateRequest, type GeneratorStatus, type StudySet } from "@/types";
+import { studySetSchema, type Difficulty, type Model, type GeneratorStatus, type StudySet } from "@/types";
 import supabase from "@/lib/supabase";
 
 export interface UseStudyForge {
   status: GeneratorStatus;
   error: string | null;
   data: StudySet | null;
-  generate: (request: GenerateRequest) => Promise<void>;
+  generate: (request: { topic: string; difficulty: Difficulty; model: Model }) => Promise<void>;
   reset: () => void;
 }
 
@@ -17,7 +17,7 @@ export function useStudyForge(): UseStudyForge {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StudySet | null>(null);
 
-  const generate = useCallback(async (request: GenerateRequest) => {
+  const generate = useCallback(async (request: { topic: string; difficulty: Difficulty; model: Model }) => {
     setStatus("loading");
     setError(null);
 

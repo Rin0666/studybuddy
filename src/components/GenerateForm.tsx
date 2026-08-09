@@ -2,7 +2,7 @@ import { useState } from "react";
 import { difficultySchema, modelSchema, type Difficulty, type Model, type GeneratorStatus } from "@/types";
 import { Loader2, AlertCircle } from "lucide-react";
 
-interface GenerateRequest {
+export interface GenerateFormRequest {
   topic: string;
   difficulty: Difficulty;
   model: Model;
@@ -19,7 +19,7 @@ const MODELS: { value: Model; label: string }[] = [
 interface GenerateFormProps {
   status: GeneratorStatus;
   error: string | null;
-  onGenerate: (request: GenerateRequest) => void;
+  onGenerate: (request: GenerateFormRequest) => void;
 }
 
 export function GenerateForm({ status, error, onGenerate }: GenerateFormProps) {
