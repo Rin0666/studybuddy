@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useSavedStudySets } from "@/hooks/useSavedStudySets";
+import type { ShareVisibility } from "@/lib/studySets";
 import type { StudySet, Model } from "@/types";
-import { Share2, Link2, Loader2, Copy, CheckCircle2, Users, X, AlertCircle, Save } from "lucide-react";
+import { Share2, Link2, Loader2, Copy, CheckCircle2, Users, X, AlertCircle, Save, Globe2, LockKeyhole } from "lucide-react";
 
 interface SharePanelProps {
   studySet: StudySet;
@@ -13,6 +14,7 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
   const { save, saveStatus, saveError, share, shareStatus, shareError } = useSavedStudySets();
   const [result, setResult] = useState<Awaited<ReturnType<typeof share>> | null>(null);
   const [emailsRaw, setEmailsRaw] = useState("");
+  const [visibility, setVisibility] = useState<ShareVisibility>("private");
   const [copied, setCopied] = useState(false);
   const [savedStudySetId, setSavedStudySetId] = useState(savedId);
   const [savedPrivately, setSavedPrivately] = useState(false);
@@ -43,7 +45,7 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
       .map((e) => e.trim())
       .filter(Boolean);
 
-    const res = await share(saved.id, emails);
+    const res = await share(saved.id, emails, visibility);
     if (res) setResult(res);
   };
 
@@ -67,12 +69,50 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
         <div>
           <h3 className="text-lg font-bold text-foreground">Save or share this lesson</h3>
           <p className="text-sm text-foreground/70 mt-1">
-            Keep it private in your account, or create a public link and optionally invite people.
+            Choose who can access the lesson, then optionally invite people by email.
           </p>
         </div>
       </div>
 
       <div className="mt-6 space-y-5">
+        <fieldset>
+          <legend className="block text-sm font-semibold text-foreground mb-2">Lesson visibility</legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setVisibility("private")}
+              aria-pressed={visibility === "private"}
+              className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors cursor-pointer ${
+                visibility === "private"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary"
+                  : "border-border bg-white hover:bg-muted"
+              }`}
+            >
+              <LockKeyhole className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <span>
+                <span className="block text-sm font-bold text-foreground">Private</span>
+                <span className="block text-xs text-foreground/60 mt-1">Only you and invited emails can access it.</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility("public")}
+              aria-pressed={visibility === "public"}
+              className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors cursor-pointer ${
+                visibility === "public"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary"
+                  : "border-border bg-white hover:bg-muted"
+              }`}
+            >
+              <Globe2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <span>
+                <span className="block text-sm font-bold text-foreground">Public</span>
+                <span className="block text-xs text-foreground/60 mt-1">Anyone with the generated link can access it.</span>
+              </span>
+            </button>
+          </div>
+        </fieldset>
+
         <div>
           <label htmlFor="share-emails" className="block text-sm font-semibold text-foreground mb-2">
             Invite by email
@@ -87,7 +127,9 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
           />
           <p className="text-xs text-foreground/50 mt-1.5 flex items-center gap-1">
             <Users className="w-3 h-3" />
-            Separate multiple emails with commas or new lines. Leave blank to create a link only.
+            {visibility === "public"
+              ? "Separate multiple emails with commas or new lines. Email invitations are optional."
+              : "Separate multiple emails with commas or new lines. Only these recipients will see the shared lesson."}
           </p>
         </div>
 
@@ -119,30 +161,43 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
             disabled={isBusy}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-on-primary transition-all hover:bg-secondary active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-            {savedStudySetId ? "Update & share" : "Save & share"}
+            {isBusy ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : visibility === "public" ? (
+              <Link2 className="w-4 h-4" />
+            ) : (
+              <LockKeyhole className="w-4 h-4" />
+            )}
+            {visibility === "public" ? "Save as public" : "Share privately"}
           </button>
         </div>
 
         {result && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out rounded-xl bg-muted border border-border p-4 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-foreground/70 mb-1.5">Public link</label>
-              <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={result.url}
-                  className="flex-1 rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <button
-                  onClick={copyLink}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted active:scale-[0.97] cursor-pointer"
-                >
-                  {copied ? <CheckCircle2 className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
+            {result.url ? (
+              <div>
+                <label className="block text-xs font-semibold text-foreground/70 mb-1.5">Public link</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={result.url}
+                    className="flex-1 rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    onClick={copyLink}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted active:scale-[0.97] cursor-pointer"
+                  >
+                    {copied ? <CheckCircle2 className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4" />}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-start gap-2 text-sm text-foreground/75">
+                <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                Private sharing is active. No public link can access this lesson.
+              </div>
+            )}
 
             {result.recipients.length > 0 && (
               <div>

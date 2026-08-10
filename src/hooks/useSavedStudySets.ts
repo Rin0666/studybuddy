@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
-import { saveStudySet, listSavedStudySets, deleteStudySet, createShare, revokeShare, getStudySetById } from "@/lib/studySets";
-import type { SavedStudySet, ShareResult } from "@/lib/studySets";
+import { saveStudySet, listSavedStudySets, listReceivedStudySets, deleteStudySet, createShare, revokeShare, getStudySetById } from "@/lib/studySets";
+import type { SavedStudySet, ReceivedStudySet, ShareResult, ShareVisibility } from "@/lib/studySets";
 import type { StudySet, Model } from "@/types";
 
 type SaveStatus = "idle" | "loading" | "success" | "error";
@@ -10,6 +10,7 @@ type ListStatus = "idle" | "loading" | "success" | "error";
 
 interface UseSavedStudySets {
   list: SavedStudySet[];
+  receivedList: ReceivedStudySet[];
   listStatus: ListStatus;
   listError: string | null;
   refresh: () => Promise<void>;
@@ -20,7 +21,7 @@ interface UseSavedStudySets {
   removeStatus: SaveStatus;
   removeError: string | null;
   getById: (id: string) => Promise<SavedStudySet | null>;
-  share: (studySetId: string, emails: string[]) => Promise<ShareResult | null>;
+  share: (studySetId: string, emails: string[], visibility: ShareVisibility) => Promise<ShareResult | null>;
   shareStatus: ShareStatus;
   shareError: string | null;
   revoke: (studySetId: string) => Promise<void>;
@@ -29,6 +30,7 @@ interface UseSavedStudySets {
 export function useSavedStudySets(): UseSavedStudySets {
   const { user } = useAuth();
   const [list, setList] = useState<SavedStudySet[]>([]);
+  const [receivedList, setReceivedList] = useState<ReceivedStudySet[]>([]);
   const [listStatus, setListStatus] = useState<ListStatus>("idle");
   const [listError, setListError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -41,13 +43,18 @@ export function useSavedStudySets(): UseSavedStudySets {
   const refresh = useCallback(async () => {
     if (!user) {
       setList([]);
+      setReceivedList([]);
       return;
     }
     setListStatus("loading");
     setListError(null);
     try {
-      const data = await listSavedStudySets();
-      setList(data);
+      const [owned, received] = await Promise.all([
+        listSavedStudySets(),
+        listReceivedStudySets(),
+      ]);
+      setList(owned);
+      setReceivedList(received);
       setListStatus("success");
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Failed to load saved study sets.");
@@ -100,11 +107,15 @@ export function useSavedStudySets(): UseSavedStudySets {
     return getStudySetById(id);
   }, []);
 
-  const share = useCallback(async (studySetId: string, emails: string[]): Promise<ShareResult | null> => {
+  const share = useCallback(async (
+    studySetId: string,
+    emails: string[],
+    visibility: ShareVisibility
+  ): Promise<ShareResult | null> => {
     setShareStatus("loading");
     setShareError(null);
     try {
-      const result = await createShare(studySetId, emails);
+      const result = await createShare(studySetId, emails, visibility);
       setShareStatus("success");
       return result;
     } catch (err) {
@@ -121,6 +132,7 @@ export function useSavedStudySets(): UseSavedStudySets {
 
   return {
     list,
+    receivedList,
     listStatus,
     listError,
     refresh,
