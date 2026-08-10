@@ -11,7 +11,7 @@ import {
 import { User, LogOut, Loader2 } from "lucide-react";
 
 export function AuthButton() {
-  const { user, loading, signOut } = useAuth();
+  const { user, isAdmin, loading, signOut } = useAuth();
   const isAuthenticated = useIsAuthenticated();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -39,6 +39,11 @@ export function AuthButton() {
               {user.email?.charAt(0).toUpperCase() ?? "U"}
             </div>
             <span className="hidden sm:inline max-w-[140px] truncate">{user.email}</span>
+            {isAdmin && (
+              <span className="hidden sm:inline rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                Admin
+              </span>
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[160px]">

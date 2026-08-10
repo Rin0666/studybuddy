@@ -31,26 +31,33 @@ export interface ShareResult {
   recipients: ShareRecipient[];
 }
 
-export async function saveStudySet(studySet: StudySet, model?: Model): Promise<SavedStudySet> {
+export async function saveStudySet(
+  studySet: StudySet,
+  model?: Model,
+  savedId?: string
+): Promise<SavedStudySet> {
   const payload: StudySet & { _meta?: { savedWithModel?: Model } } = { ...studySet };
   if (model) payload._meta = { savedWithModel: model };
 
   const user = (await supabase.auth.getUser()).data.user;
   if (!user) throw new Error("You must be signed in to save a study set.");
 
-  const { data, error } = await supabase
-    .from("study_sets")
-    .upsert(
-      {
-        user_id: user.id,
-        topic: studySet.topic,
-        scope: studySet.scope,
-        payload,
-      },
-      { onConflict: "user_id,topic" }
-    )
-    .select()
-    .single();
+  const values = {
+    user_id: user.id,
+    topic: studySet.topic,
+    scope: studySet.scope,
+    payload,
+  };
+
+  const query = savedId
+    ? supabase
+        .from("study_sets")
+        .update(values)
+        .eq("id", savedId)
+        .eq("user_id", user.id)
+    : supabase.from("study_sets").insert(values);
+
+  const { data, error } = await query.select().single();
 
   if (error) throw new Error(error.message);
   return data as SavedStudySet;

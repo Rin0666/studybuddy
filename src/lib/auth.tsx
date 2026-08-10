@@ -4,6 +4,7 @@ import type { User, AuthError, Provider } from "@supabase/supabase-js";
 
 interface AuthState {
   user: User | null;
+  isAdmin: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -11,6 +12,8 @@ interface AuthState {
 interface AuthActions {
   signInWithPassword: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null; needsEmailConfirmation?: boolean }>;
+  resetPasswordForEmail: (email: string) => Promise<{ error: AuthError | null }>;
+  updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
   signInWithOtp: (email: string) => Promise<{ error: AuthError | null }>;
   signInWithOAuth: (provider: Provider) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<{ error: AuthError | null }>;
@@ -62,7 +65,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: { emailRedirectTo: window.location.origin },
     });
     if (error) {
-      setError(error.message);
+      const isRateLimit =
+        error.status === 429 || error.message.toLowerCase().includes("rate limit");
+      setError(
+        isRateLimit
+          ? "Too many confirmation emails have been requested. Please wait and try again, or ask the project owner to configure custom SMTP in Supabase."
+          : error.message
+      );
       return { error };
     }
     return { error: null, needsEmailConfirmation: !data.session };
@@ -74,6 +83,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       options: { emailRedirectTo: window.location.origin },
     });
+    if (error) setError(error.message);
+    return { error };
+  }, []);
+
+  const resetPasswordForEmail = useCallback(async (email: string) => {
+    setError(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      const isRateLimit =
+        error.status === 429 || error.message.toLowerCase().includes("rate limit");
+      setError(
+        isRateLimit
+          ? "Too many password-reset emails have been requested. Please wait before trying again."
+          : error.message
+      );
+    }
+    return { error };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    setError(null);
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) setError(error.message);
     return { error };
   }, []);
@@ -96,9 +129,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
+  const isAdmin = user?.app_metadata?.role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, signInWithPassword, signUp, signInWithOtp, signInWithOAuth, signOut, clearError }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, error, signInWithPassword, signUp, resetPasswordForEmail, updatePassword, signInWithOtp, signInWithOAuth, signOut, clearError }}>
       {children}
     </AuthContext.Provider>
   );

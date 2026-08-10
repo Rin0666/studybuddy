@@ -13,7 +13,7 @@ interface UseSavedStudySets {
   listStatus: ListStatus;
   listError: string | null;
   refresh: () => Promise<void>;
-  save: (studySet: StudySet, model?: Model) => Promise<SavedStudySet | null>;
+  save: (studySet: StudySet, model?: Model, savedId?: string) => Promise<SavedStudySet | null>;
   saveStatus: SaveStatus;
   saveError: string | null;
   remove: (id: string) => Promise<void>;
@@ -59,11 +59,15 @@ export function useSavedStudySets(): UseSavedStudySets {
     refresh();
   }, [refresh]);
 
-  const save = useCallback(async (studySet: StudySet, model?: Model): Promise<SavedStudySet | null> => {
+  const save = useCallback(async (
+    studySet: StudySet,
+    model?: Model,
+    savedId?: string
+  ): Promise<SavedStudySet | null> => {
     setSaveStatus("loading");
     setSaveError(null);
     try {
-      const saved = await saveStudySet(studySet, model);
+      const saved = await saveStudySet(studySet, model, savedId);
       setSaveStatus("success");
       setList((prev) => {
         const next = prev.filter((s) => s.id !== saved.id);

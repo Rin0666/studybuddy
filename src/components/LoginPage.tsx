@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const redirectTo = (location.state as { from?: string })?.from || "/";
+  const passwordReset = (location.state as { passwordReset?: boolean })?.passwordReset === true;
 
   useEffect(() => {
     if (user && !loading) {
@@ -123,6 +124,15 @@ export default function LoginPage() {
               </div>
             )}
 
+            {passwordReset && !error && (
+              <div
+                role="status"
+                className="rounded-lg bg-accent/10 text-accent px-4 py-3 text-sm font-medium"
+              >
+                Your password has been updated. Log in with your new password.
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -178,6 +188,14 @@ export default function LoginPage() {
                   {fieldErrors.password}
                 </p>
               )}
+              <div className="text-right">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-semibold text-primary hover:underline cursor-pointer"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <Button

@@ -11,6 +11,8 @@ const SharedView = lazy(() => import("@/components/SharedView"));
 const SavedStudySetsPage = lazy(() => import("@/components/SavedStudySetsPage"));
 const LoginPage = lazy(() => import("@/components/LoginPage"));
 const SignupPage = lazy(() => import("@/components/SignupPage"));
+const ForgotPasswordPage = lazy(() => import("@/components/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/components/ResetPasswordPage"));
 
 function MainApp() {
   const studyForge = useStudyForge();
@@ -71,6 +73,8 @@ export default function App() {
       <Route path="/" element={<MainApp />} />
       <Route path="/login" element={<Suspense fallback={<PageLoader />}><LoginPage /></Suspense>} />
       <Route path="/signup" element={<Suspense fallback={<PageLoader />}><SignupPage /></Suspense>} />
+      <Route path="/forgot-password" element={<Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense>} />
+      <Route path="/reset-password" element={<Suspense fallback={<PageLoader />}><ResetPasswordPage /></Suspense>} />
       <Route path="/saved" element={<Suspense fallback={<PageLoader />}><SavedStudySetsPage /></Suspense>} />
       <Route path="/s/:slug" element={<Suspense fallback={<PageLoader />}><SharedView /></Suspense>} />
       <Route path="*" element={<Navigate to="/" replace />} />

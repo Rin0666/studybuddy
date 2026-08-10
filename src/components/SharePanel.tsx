@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSavedStudySets } from "@/hooks/useSavedStudySets";
 import type { StudySet, Model } from "@/types";
-import { Share2, Link2, Loader2, Copy, CheckCircle2, Users, X, AlertCircle } from "lucide-react";
+import { Share2, Link2, Loader2, Copy, CheckCircle2, Users, X, AlertCircle, Save } from "lucide-react";
 
 interface SharePanelProps {
   studySet: StudySet;
@@ -14,25 +14,36 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
   const [result, setResult] = useState<Awaited<ReturnType<typeof share>> | null>(null);
   const [emailsRaw, setEmailsRaw] = useState("");
   const [copied, setCopied] = useState(false);
+  const [savedStudySetId, setSavedStudySetId] = useState(savedId);
+  const [savedPrivately, setSavedPrivately] = useState(false);
 
   const isBusy = saveStatus === "loading" || shareStatus === "loading";
 
+  const persistStudySet = async () => {
+    const saved = await save(studySet, model, savedStudySetId);
+    if (saved) setSavedStudySetId(saved.id);
+    return saved;
+  };
+
+  const handleSavePrivate = async () => {
+    setResult(null);
+    setSavedPrivately(false);
+    const saved = await persistStudySet();
+    if (saved) setSavedPrivately(true);
+  };
+
   const handleShare = async () => {
     setResult(null);
-    let id = savedId;
-
-    if (!id) {
-      const saved = await save(studySet, model);
-      if (!saved) return;
-      id = saved.id;
-    }
+    setSavedPrivately(false);
+    const saved = await persistStudySet();
+    if (!saved) return;
 
     const emails = emailsRaw
       .split(/[\n,;]+/)
       .map((e) => e.trim())
       .filter(Boolean);
 
-    const res = await share(id, emails);
+    const res = await share(saved.id, emails);
     if (res) setResult(res);
   };
 
@@ -54,9 +65,9 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
           <Share2 className="w-5 h-5" />
         </span>
         <div>
-          <h3 className="text-lg font-bold text-foreground">Share this lesson</h3>
+          <h3 className="text-lg font-bold text-foreground">Save or share this lesson</h3>
           <p className="text-sm text-foreground/70 mt-1">
-            Save it to your account, then get a public link or invite people by email.
+            Keep it private in your account, or create a public link and optionally invite people.
           </p>
         </div>
       </div>
@@ -87,14 +98,31 @@ export function SharePanel({ studySet, model, savedId }: SharePanelProps) {
           </div>
         )}
 
-        <button
-          onClick={handleShare}
-          disabled={isBusy}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-on-primary transition-all hover:bg-secondary active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-        >
-          {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-          {savedId ? "Update & share" : "Save & share"}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleSavePrivate}
+            disabled={isBusy}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-6 py-3 text-sm font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {saveStatus === "loading" ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : savedPrivately ? (
+              <CheckCircle2 className="w-4 h-4 text-accent" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {savedPrivately ? "Saved privately" : savedStudySetId ? "Update private copy" : "Save privately"}
+          </button>
+
+          <button
+            onClick={handleShare}
+            disabled={isBusy}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-on-primary transition-all hover:bg-secondary active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+            {savedStudySetId ? "Update & share" : "Save & share"}
+          </button>
+        </div>
 
         {result && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out rounded-xl bg-muted border border-border p-4 space-y-4">
