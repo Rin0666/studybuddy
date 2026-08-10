@@ -19,12 +19,13 @@ import { useSubtopicTree } from "@/hooks/useSubtopicTree";
 interface ResultsViewProps {
   data: StudySet;
   model?: Model;
+  savedId?: string;
   onReset: () => void;
 }
 
 type ResultTab = "summary" | "lesson" | "quiz" | "export";
 
-export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset }: ResultsViewProps) {
+export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", savedId, onReset }: ResultsViewProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>("summary");
   const {
     subtopics,
@@ -118,7 +119,7 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
           />
         )}
         {activeTab === "quiz" && <QuizTab data={studySetWithTree} />}
-        {activeTab === "export" && <ExportTab data={studySetWithTree} model={model} />}
+        {activeTab === "export" && <ExportTab data={studySetWithTree} model={model} savedId={savedId} />}
       </div>
     </section>
   );

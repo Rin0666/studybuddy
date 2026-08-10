@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useState } from "react";
 import supabase from "./supabase";
 import type { User, AuthError, Provider } from "@supabase/supabase-js";
 
@@ -131,10 +131,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearError = useCallback(() => setError(null), []);
   const isAdmin = user?.app_metadata?.role === "admin";
 
-  return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, error, signInWithPassword, signUp, resetPasswordForEmail, updatePassword, signInWithOtp, signInWithOAuth, signOut, clearError }}>
-      {children}
-    </AuthContext.Provider>
+  return createElement(
+    AuthContext.Provider,
+    {
+      value: {
+        user,
+        isAdmin,
+        loading,
+        error,
+        signInWithPassword,
+        signUp,
+        resetPasswordForEmail,
+        updatePassword,
+        signInWithOtp,
+        signInWithOAuth,
+        signOut,
+        clearError,
+      },
+    },
+    children
   );
 }
 
