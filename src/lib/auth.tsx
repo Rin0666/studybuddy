@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext, useCallback } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import supabase from "./supabase";
 import type { User, AuthError, Provider } from "@supabase/supabase-js";
 

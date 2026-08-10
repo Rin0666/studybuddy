@@ -183,7 +183,8 @@ export function ExportTab({ data, model }: ExportTabProps) {
     });
 
     const pdfBytes = await pdfDoc.save();
-    const pdfBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength);
+    const pdfBuffer = new ArrayBuffer(pdfBytes.byteLength);
+    new Uint8Array(pdfBuffer).set(pdfBytes);
     download(new Blob([pdfBuffer], { type: "application/pdf" }), `${safeFileName}_study_set.pdf`);
     setPdfState("done");
     setTimeout(() => setPdfState("idle"), 2000);
