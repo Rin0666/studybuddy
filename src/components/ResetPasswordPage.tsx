@@ -1,116 +1,136 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, Eye, EyeOff, Loader2, Lock, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth";
+import { CheckCircle2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
-  const { user, loading, updatePassword, signOut, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { updatePassword, clearError } = useAuth();
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [fieldError, setFieldError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [missingCode, setMissingCode] = useState(false);
 
-  useEffect(() => clearError(), [clearError]);
+  useEffect(() => {
+    // Supabase sends the recovery token in the URL hash fragment as
+    // #access_token=...&type=recovery; the JS client consumes it automatically.
+    // We just warn if there’s no recovery indicator at all.
+    const hash = window.location.hash;
+    const type = searchParams.get("type");
+    if (type !== "recovery" && !hash.includes("type=recovery")) {
+      setMissingCode(true);
+    }
+  }, [searchParams]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
     clearError();
 
-    if (password.length < 8) {
-      setFieldError("Password must be at least 8 characters");
+    if (password.length < 6) {
+      setFormError("Password must be at least 6 characters.");
       return;
     }
     if (password !== confirmPassword) {
-      setFieldError("Passwords do not match");
+      setFormError("Passwords do not match.");
       return;
     }
 
-    setFieldError(null);
     setIsSubmitting(true);
-    const { error: updateError } = await updatePassword(password);
-    if (!updateError) {
-      await signOut();
-      navigate("/login", { replace: true, state: { passwordReset: true } });
-      return;
+    try {
+      const { error } = await updatePassword(password);
+      if (error) {
+        setFormError(error.message);
+      } else {
+        setSuccess(true);
+        setTimeout(() => navigate("/login"), 2500);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  }
-
-  if (!user) {
+  if (missingCode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="w-full max-w-md rounded-2xl border border-border bg-white p-8 text-center shadow-md">
-          <AlertCircle className="w-10 h-10 text-destructive mx-auto mb-4" />
-          <h1 className="text-xl font-bold mb-2">Reset link expired or invalid</h1>
-          <p className="text-sm text-foreground/70 mb-6">Request a new password-reset email and use the latest link.</p>
-          <Button asChild className="w-full"><Link to="/forgot-password">Request another link</Link></Button>
+      <div className="min-h-screen bg-background text-foreground font-sans flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-4">
+          <h1 className="text-2xl font-bold tracking-tight">Invalid reset link</h1>
+          <p className="text-muted-foreground">
+            This password reset link is invalid or has expired. Please request a new one.
+          </p>
+          <Button onClick={() => navigate("/forgot-password")}>Request new link</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      <main className="flex min-h-screen items-center justify-center px-4 py-12 sm:px-6">
-        <div className="w-full max-w-md">
-          <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-on-primary mb-4">
-              <Sparkles className="w-6 h-6" aria-hidden="true" />
+    <div className="min-h-screen bg-background text-foreground font-sans flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">Create new password</h1>
+          <p className="text-muted-foreground">Choose a new password for your account.</p>
+        </div>
+
+        {success ? (
+          <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Choose a new password</h1>
-            <p className="text-foreground/70">Use at least eight characters.</p>
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">Password updated</h2>
+              <p className="text-muted-foreground text-sm">
+                Redirecting you to the login page…
+              </p>
+            </div>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5 bg-white border border-border rounded-2xl p-6 sm:p-8 shadow-md">
-            {error && <div role="alert" className="rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-sm font-medium">{error}</div>}
-
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="new-password">New password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" aria-hidden="true" />
-                <Input
-                  id="new-password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="pl-10 pr-10 h-11"
-                />
-                <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/50" aria-label={showPassword ? "Hide password" : "Show password"}>
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirm-new-password">Confirm new password</Label>
+              <Label htmlFor="password">New password</Label>
               <Input
-                id="confirm-new-password"
-                type={showPassword ? "text" : "password"}
+                id="password"
+                type="password"
                 autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="h-11"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
-              {fieldError && <p className="text-sm text-destructive">{fieldError}</p>}
             </div>
 
-            <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm new password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {formError && (
+              <div className="rounded-lg bg-destructive/10 text-destructive px-3 py-2 text-sm">
+                {formError}
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Updating…" : "Update password"}
             </Button>
           </form>
-        </div>
-      </main>
+        )}
+      </div>
     </div>
   );
 }
