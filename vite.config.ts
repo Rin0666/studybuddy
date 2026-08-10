@@ -42,4 +42,7 @@ export default defineConfig(() => ({
   server: {
     hmr: false,
   },
+  build: {
+    outDir: "dist",
+  },
 }))

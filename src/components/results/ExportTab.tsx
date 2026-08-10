@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import PptxGenJS from "pptxgenjs";
-import type { StudySet } from "@/types";
+import type { StudySet, Model } from "@/types";
 import { FileText, Presentation, Download, Loader2, CheckCircle2 } from "lucide-react";
+import { SharePanel } from "@/components/SharePanel";
 
 interface ExportTabProps {
   data: StudySet;
+  model?: Model;
 }
 
-export function ExportTab({ data }: ExportTabProps) {
+export function ExportTab({ data, model }: ExportTabProps) {
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done">("idle");
   const [pptxState, setPptxState] = useState<"idle" | "loading" | "done">("idle");
 
@@ -85,7 +87,7 @@ export function ExportTab({ data }: ExportTabProps) {
     };
 
     let currentPage = pdfDoc.addPage(pageSize);
-    const { width, height } = currentPage.getSize();
+    const { height } = currentPage.getSize();
     let y = height - margin;
 
     currentPage.drawText(data.topic, {
@@ -181,7 +183,8 @@ export function ExportTab({ data }: ExportTabProps) {
     });
 
     const pdfBytes = await pdfDoc.save();
-    download(new Blob([pdfBytes], { type: "application/pdf" }), `${safeFileName}_study_set.pdf`);
+    const pdfBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength);
+    download(new Blob([pdfBuffer], { type: "application/pdf" }), `${safeFileName}_study_set.pdf`);
     setPdfState("done");
     setTimeout(() => setPdfState("idle"), 2000);
   };
@@ -239,9 +242,9 @@ export function ExportTab({ data }: ExportTabProps) {
       });
     });
 
-    const blob = await pptx.write({ fileName: `${safeFileName}_study_set.pptx` });
-    if (blob instanceof Blob) {
-      download(blob, `${safeFileName}_study_set.pptx`);
+    const pptxBlob = await pptx.write({ outputType: "blob" });
+    if (pptxBlob instanceof Blob) {
+      download(pptxBlob, `${safeFileName}_study_set.pptx`);
     }
     setPptxState("done");
     setTimeout(() => setPptxState("idle"), 2000);
@@ -274,6 +277,8 @@ export function ExportTab({ data }: ExportTabProps) {
           />
         </div>
       </article>
+
+      <SharePanel studySet={data} model={model} />
     </div>
   );
 }

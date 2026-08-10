@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSavedStudySets } from "@/hooks/useSavedStudySets";
 import type { StudySet, Model } from "@/types";
-import { Share2, Link2, Mail, Loader2, Copy, CheckCircle2, Users, X, AlertCircle } from "lucide-react";
+import { Share2, Link2, Loader2, Copy, CheckCircle2, Users, X, AlertCircle } from "lucide-react";
 
 interface SharePanelProps {
   studySet: StudySet;
