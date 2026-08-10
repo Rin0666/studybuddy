@@ -9,9 +9,12 @@ interface AuthState {
 }
 
 interface AuthActions {
+  signInWithPassword: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null; needsEmailConfirmation?: boolean }>;
   signInWithOtp: (email: string) => Promise<{ error: AuthError | null }>;
   signInWithOAuth: (provider: Provider) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<{ error: AuthError | null }>;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<(AuthState & AuthActions) | null>(null);
@@ -44,6 +47,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError(error.message);
+    return { error };
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    setError(null);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    if (error) {
+      setError(error.message);
+      return { error };
+    }
+    return { error: null, needsEmailConfirmation: !data.session };
+  }, []);
+
   const signInWithOtp = useCallback(async (email: string) => {
     setError(null);
     const { error } = await supabase.auth.signInWithOtp({
@@ -71,8 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   }, []);
 
+  const clearError = useCallback(() => setError(null), []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, signInWithOtp, signInWithOAuth, signOut }}>
+    <AuthContext.Provider value={{ user, loading, error, signInWithPassword, signUp, signInWithOtp, signInWithOAuth, signOut, clearError }}>
       {children}
     </AuthContext.Provider>
   );
