@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import PptxGenJS from "pptxgenjs";
-import type { StudySet, Model } from "@/types";
+import type { StudySet } from "@/types";
 import { FileText, Presentation, Download, Loader2, CheckCircle2 } from "lucide-react";
-import { SharePanel } from "@/components/SharePanel";
 
 interface ExportTabProps {
   data: StudySet;
-  model?: Model;
 }
 
-export function ExportTab({ data, model }: ExportTabProps) {
+export function ExportTab({ data }: ExportTabProps) {
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done">("idle");
   const [pptxState, setPptxState] = useState<"idle" | "loading" | "done">("idle");
 
@@ -276,8 +274,6 @@ export function ExportTab({ data, model }: ExportTabProps) {
           />
         </div>
       </article>
-
-      <SharePanel studySet={data} model={model} />
     </div>
   );
 }

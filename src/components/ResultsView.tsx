@@ -118,7 +118,7 @@ export function ResultsView({ data, model = "Qwen/Qwen2.5-7B-Instruct", onReset 
           />
         )}
         {activeTab === "quiz" && <QuizTab data={studySetWithTree} />}
-        {activeTab === "export" && <ExportTab data={studySetWithTree} model={model} />}
+        {activeTab === "export" && <ExportTab data={studySetWithTree} />}
       </div>
     </section>
   );
