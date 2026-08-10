@@ -75,19 +75,19 @@ export function AuthButton() {
     <div className="flex items-center gap-2">
       {location.pathname !== "/login" && (
         <Button
-          variant="ghost"
           size="sm"
           asChild
-          className="font-medium text-foreground/80 hover:text-foreground"
+          className="bg-primary hover:bg-primary/90 text-on-primary font-semibold"
         >
           <Link to="/login">Log in</Link>
         </Button>
       )}
       {location.pathname !== "/signup" && (
         <Button
+          variant="ghost"
           size="sm"
           asChild
-          className="bg-primary hover:bg-primary/90 text-on-primary font-semibold"
+          className="font-medium text-foreground/80 hover:text-foreground"
         >
           <Link to="/signup">Sign up</Link>
         </Button>
