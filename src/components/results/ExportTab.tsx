@@ -8,10 +8,9 @@ import { SharePanel } from "@/components/SharePanel";
 interface ExportTabProps {
   data: StudySet;
   model?: Model;
-  savedId?: string;
 }
 
-export function ExportTab({ data, model, savedId }: ExportTabProps) {
+export function ExportTab({ data, model }: ExportTabProps) {
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done">("idle");
   const [pptxState, setPptxState] = useState<"idle" | "loading" | "done">("idle");
 
@@ -280,7 +279,7 @@ export function ExportTab({ data, model, savedId }: ExportTabProps) {
         </div>
       </article>
 
-      <SharePanel studySet={data} model={model} savedId={savedId} />
+      <SharePanel studySet={data} model={model} />
     </div>
   );
 }
