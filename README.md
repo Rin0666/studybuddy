@@ -1,10 +1,6 @@
-1 file changed
-+119
--1
-studybuddy/README.md
-# StudyForge
+# StudyBuddy
 
-StudyForge turns a topic into a structured, AI-generated study guide. Choose a scope and model, then explore a summary, lesson plan, quiz, and export-ready materials from one responsive web app.
+StudyBuddy turns a topic into a structured, AI-generated study guide. Choose a scope and model, then explore a summary, lesson plan, quiz, and export-ready materials from one responsive web app.
 
 ## Features
 
@@ -73,9 +69,9 @@ The frontend calls three Supabase Edge Functions:
 
 | Function | Responsibility |
 | --- | --- |
-| `studyforge-generate` | Generate the initial study guide |
-| `studyforge-dive` | Produce a focused explanation and discover related material |
-| `studyforge-add-subtopic` | Add a new root or nested subtopic |
+| `StudyBuddy-generate` | Generate the initial study guide |
+| `StudyBuddy-dive` | Produce a focused explanation and discover related material |
+| `StudyBuddy-add-subtopic` | Add a new root or nested subtopic |
 
 To deploy them to a linked Supabase project:
 
@@ -83,9 +79,9 @@ To deploy them to a linked Supabase project:
 supabase login
 supabase link --project-ref YOUR_PROJECT_REF
 supabase secrets set FEATHERLESS_API_KEY=YOUR_KEY
-supabase functions deploy studyforge-generate
-supabase functions deploy studyforge-dive
-supabase functions deploy studyforge-add-subtopic
+supabase functions deploy StudyBuddy-generate
+supabase functions deploy StudyBuddy-dive
+supabase functions deploy StudyBuddy-add-subtopic
 ```
 
 SQL files under `supabase/migrations/` add lesson-sharing behavior. They are incremental migrations and assume the project's core tables, including `study_sets` and `shared_study_sets`, already exist.
